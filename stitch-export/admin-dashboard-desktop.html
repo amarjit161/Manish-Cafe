@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Manish Cafe - Admin Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-dim": "#cbdbf5",
+                    "outline": "#74777f",
+                    "secondary-fixed-dim": "#ffb690",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed": "#001c3b",
+                    "on-tertiary": "#ffffff",
+                    "inverse-on-surface": "#eaf1ff",
+                    "primary-fixed-dim": "#adc8f5",
+                    "background": "#f8f9ff",
+                    "secondary-fixed": "#ffdbca",
+                    "tertiary-container": "#004319",
+                    "surface-container": "#e5eeff",
+                    "surface": "#f8f9ff",
+                    "on-background": "#0b1c30",
+                    "on-tertiary-container": "#38b95d",
+                    "surface-variant": "#d3e4fe",
+                    "primary-container": "#1e3a5f",
+                    "surface-container-low": "#eff4ff",
+                    "on-primary-fixed-variant": "#2d486d",
+                    "on-secondary": "#ffffff",
+                    "surface-bright": "#f8f9ff",
+                    "on-secondary-fixed-variant": "#783200",
+                    "surface-container-highest": "#d3e4fe",
+                    "inverse-primary": "#adc8f5",
+                    "tertiary-fixed": "#7ffc97",
+                    "on-surface-variant": "#43474e",
+                    "on-error": "#ffffff",
+                    "inverse-surface": "#213145",
+                    "tertiary-fixed-dim": "#62df7d",
+                    "primary-fixed": "#d5e3ff",
+                    "primary": "#022448",
+                    "tertiary": "#002a0d",
+                    "surface-tint": "#455f87",
+                    "outline-variant": "#c4c6cf",
+                    "on-surface": "#0b1c30",
+                    "on-secondary-fixed": "#341100",
+                    "error-container": "#ffdad6",
+                    "surface-container-high": "#dce9ff",
+                    "secondary": "#9d4300",
+                    "secondary-container": "#fd761a",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed": "#002109",
+                    "on-tertiary-fixed-variant": "#005320",
+                    "on-secondary-container": "#5c2400",
+                    "on-primary-container": "#8aa4cf"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xl": "32px",
+                    "md": "16px",
+                    "base": "4px",
+                    "2xl": "48px",
+                    "margin": "auto",
+                    "lg": "24px",
+                    "xs": "4px",
+                    "sm": "8px",
+                    "3xl": "64px",
+                    "gutter": "20px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-lg": ["Inter"],
+                    "display-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "label-lg": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .sidebar-active { font-variation-settings: 'FILL' 1; }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md overflow-x-hidden">
+<!-- NavigationDrawer Shell -->
+<aside class="fixed inset-y-0 left-0 z-[60] flex flex-col bg-primary h-full w-72 border-r border-slate-800 shadow-2xl transition-all duration-300 ease-in-out">
+<div class="text-2xl font-black text-white p-6 tracking-tighter">Manish Cafe</div>
+<nav class="flex-1 px-4 space-y-2">
+<!-- Home -->
+<a class="flex items-center gap-3 text-slate-400 p-3 hover:bg-slate-800 hover:text-white rounded-lg transition-colors font-label-lg" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+                Home
+            </a>
+<!-- Gaming House -->
+<a class="flex items-center gap-3 text-slate-400 p-3 hover:bg-slate-800 hover:text-white rounded-lg transition-colors font-label-lg" href="#">
+<span class="material-symbols-outlined" data-icon="sports_esports">sports_esports</span>
+                Gaming House
+            </a>
+<!-- Online Seva -->
+<a class="flex items-center gap-3 text-slate-400 p-3 hover:bg-slate-800 hover:text-white rounded-lg transition-colors font-label-lg" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+                Online Seva
+            </a>
+<!-- Skill Courses -->
+<a class="flex items-center gap-3 text-slate-400 p-3 hover:bg-slate-800 hover:text-white rounded-lg transition-colors font-label-lg" href="#">
+<span class="material-symbols-outlined" data-icon="school">school</span>
+                Skill Courses
+            </a>
+<!-- Admin (Active) -->
+<a class="flex items-center gap-3 bg-slate-800 text-white font-bold rounded-lg p-3 shadow-lg font-label-lg" href="#">
+<span class="material-symbols-outlined sidebar-active" data-icon="dashboard" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+                Admin
+            </a>
+</nav>
+<div class="p-6 border-t border-slate-800">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-white font-bold">M</div>
+<div class="overflow-hidden">
+<p class="text-white text-sm font-bold truncate">Manish Kumar</p>
+<p class="text-slate-400 text-xs">Super Admin</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-72 min-h-screen p-8">
+<!-- TopAppBar Context -->
+<header class="flex justify-between items-center mb-8 bg-surface-container-lowest/50 backdrop-blur-sm p-4 rounded-xl border border-outline-variant/30">
+<div>
+<h1 class="font-headline-lg text-primary">Admin Dashboard</h1>
+<p class="text-on-surface-variant font-label-lg">Welcome back. Here is what is happening today.</p>
+</div>
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 bg-surface-container-high px-4 py-2 rounded-lg font-label-lg text-primary hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined" data-icon="language">language</span>
+                    English/हिंदी
+                </button>
+<button class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-secondary rounded-full"></span>
+</button>
+</div>
+</header>
+<!-- 4-Card Stats Row -->
+<section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
+<!-- Bookings -->
+<div class="bg-white p-6 rounded-xl shadow-[0_4px_6px_-1px_rgba(26,26,46,0.05)] border border-slate-100 flex items-center gap-4 group hover:shadow-lg transition-all duration-300">
+<div class="w-14 h-14 rounded-xl bg-surface-container flex items-center justify-center text-primary-container group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-3xl" data-icon="confirmation_number">confirmation_number</span>
+</div>
+<div>
+<p class="text-on-surface-variant font-label-sm uppercase tracking-wider">Bookings</p>
+<h3 class="text-3xl font-bold text-primary">42</h3>
+<p class="text-tertiary-container text-xs font-bold">+12% from yesterday</p>
+</div>
+</div>
+<!-- Pending Seva -->
+<div class="bg-white p-6 rounded-xl shadow-[0_4px_6px_-1px_rgba(26,26,46,0.05)] border border-slate-100 flex items-center gap-4 group hover:shadow-lg transition-all duration-300">
+<div class="w-14 h-14 rounded-xl bg-orange-50 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-3xl" data-icon="pending_actions">pending_actions</span>
+</div>
+<div>
+<p class="text-on-surface-variant font-label-sm uppercase tracking-wider">Pending Seva</p>
+<h3 class="text-3xl font-bold text-primary">08</h3>
+<p class="text-secondary text-xs font-bold">Action required</p>
+</div>
+</div>
+<!-- Revenue -->
+<div class="bg-white p-6 rounded-xl shadow-[0_4px_6px_-1px_rgba(26,26,46,0.05)] border border-slate-100 flex items-center gap-4 group hover:shadow-lg transition-all duration-300">
+<div class="w-14 h-14 rounded-xl bg-green-50 flex items-center justify-center text-tertiary-container group-hover:bg-tertiary-container group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-3xl" data-icon="currency_rupee">currency_rupee</span>
+</div>
+<div>
+<p class="text-on-surface-variant font-label-sm uppercase tracking-wider">Revenue</p>
+<h3 class="text-3xl font-bold text-primary">₹12.4k</h3>
+<p class="text-tertiary-container text-xs font-bold">Target: 92% met</p>
+</div>
+</div>
+<!-- Active PCs -->
+<div class="bg-white p-6 rounded-xl shadow-[0_4px_6px_-1px_rgba(26,26,46,0.05)] border border-slate-100 flex items-center gap-4 group hover:shadow-lg transition-all duration-300">
+<div class="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-3xl" data-icon="desktop_windows">desktop_windows</span>
+</div>
+<div>
+<p class="text-on-surface-variant font-label-sm uppercase tracking-wider">Active PCs</p>
+<h3 class="text-3xl font-bold text-primary">18/20</h3>
+<p class="text-blue-600 text-xs font-bold">High occupancy</p>
+</div>
+</div>
+</section>
+<!-- Quick Actions -->
+<section class="mb-12">
+<h2 class="font-headline-md text-primary mb-4">Quick Actions</h2>
+<div class="flex flex-wrap gap-4">
+<button class="flex items-center gap-2 bg-secondary text-white px-6 py-3 rounded-lg font-label-lg shadow-md hover:brightness-110 active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+                    New Booking
+                </button>
+<button class="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-lg font-label-lg shadow-md hover:brightness-110 active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
+                    Upload Certificate
+                </button>
+<button class="flex items-center gap-2 bg-white text-primary border border-primary px-6 py-3 rounded-lg font-label-lg shadow-sm hover:bg-surface-container-low active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="print">print</span>
+                    Print Receipt
+                </button>
+<button class="flex items-center gap-2 bg-white text-on-surface-variant border border-outline-variant px-6 py-3 rounded-lg font-label-lg shadow-sm hover:bg-surface-container-low active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                    PC Management
+                </button>
+</div>
+</section>
+<!-- Data Tables Grid (Bento Style) -->
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+<!-- Gaming Bookings Table -->
+<div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden xl:col-span-1">
+<div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+<h3 class="font-headline-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary" data-icon="sports_esports">sports_esports</span>
+                        Gaming Bookings
+                    </h3>
+<a class="text-sm font-bold text-secondary hover:underline" href="#">View All</a>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-slate-50 text-on-surface-variant font-label-sm uppercase tracking-wider">
+<th class="px-6 py-3">Player</th>
+<th class="px-6 py-3">Station</th>
+<th class="px-6 py-3">Duration</th>
+<th class="px-6 py-3">Status</th>
+<th class="px-6 py-3 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-50">
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-slate-200"></div>
+<span class="font-medium text-primary">Rahul S.</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant font-medium">PC-04 (RTX 3060)</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">2 Hours</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold uppercase tracking-tighter">Active</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="text-outline hover:text-secondary"><span class="material-symbols-outlined" data-icon="more_vert">more_vert</span></button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-slate-200"></div>
+<span class="font-medium text-primary">Amit K.</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant font-medium">PS5 Console</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">1 Hour</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-bold uppercase tracking-tighter">Ending Soon</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="text-outline hover:text-secondary"><span class="material-symbols-outlined" data-icon="more_vert">more_vert</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Seva Requests Table -->
+<div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden xl:col-span-1">
+<div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+<h3 class="font-headline-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="assignment">assignment</span>
+                        Seva Requests
+                    </h3>
+<a class="text-sm font-bold text-secondary hover:underline" href="#">Process List</a>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-slate-50 text-on-surface-variant font-label-sm uppercase tracking-wider">
+<th class="px-6 py-3">Applicant</th>
+<th class="px-6 py-3">Service Type</th>
+<th class="px-6 py-3">Date</th>
+<th class="px-6 py-3">Status</th>
+<th class="px-6 py-3 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-50">
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="px-6 py-4">
+<span class="font-medium text-primary">Suresh Patel</span>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">Income Certificate</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">24 Oct, 2024</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-bold uppercase tracking-tighter">In Progress</span>
+</td>
+<td class="px-6 py-4 text-right space-x-2">
+<button class="text-primary hover:text-secondary"><span class="material-symbols-outlined" data-icon="edit">edit</span></button>
+<button class="text-primary hover:text-secondary"><span class="material-symbols-outlined" data-icon="visibility">visibility</span></button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="px-6 py-4">
+<span class="font-medium text-primary">Priya Sharma</span>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">Aadhar Update</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">23 Oct, 2024</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold uppercase tracking-tighter">Verified</span>
+</td>
+<td class="px-6 py-4 text-right space-x-2">
+<button class="text-primary hover:text-secondary"><span class="material-symbols-outlined" data-icon="edit">edit</span></button>
+<button class="text-primary hover:text-secondary"><span class="material-symbols-outlined" data-icon="visibility">visibility</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Course Enquiries Table -->
+<div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden xl:col-span-2">
+<div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+<h3 class="font-headline-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container" data-icon="school">school</span>
+                        Skill Course Enquiries
+                    </h3>
+<button class="bg-surface-container text-primary px-4 py-2 rounded-lg font-label-lg hover:bg-surface-variant">Export CSV</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-slate-50 text-on-surface-variant font-label-sm uppercase tracking-wider">
+<th class="px-6 py-3">Student Name</th>
+<th class="px-6 py-3">Interested Course</th>
+<th class="px-6 py-3">Contact</th>
+<th class="px-6 py-3">Enquiry Date</th>
+<th class="px-6 py-3">Status</th>
+<th class="px-6 py-3 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-50">
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="px-6 py-4 font-medium text-primary">Deepak Tiwari</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">Advanced Tally PRIME</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">+91 98765 43210</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">Oct 25, 10:30 AM</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold uppercase tracking-tighter">New</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="bg-primary text-white px-3 py-1 rounded text-xs font-bold hover:brightness-125">Call Now</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="px-6 py-4 font-medium text-primary">Neha Verma</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">Digital Marketing</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">+91 91234 56789</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">Oct 24, 04:15 PM</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold uppercase tracking-tighter">Follow-up</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="bg-primary text-white px-3 py-1 rounded text-xs font-bold hover:brightness-125">Call Now</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Footer Shell -->
+<footer class="mt-12 w-full pt-12 pb-8 border-t border-slate-200">
+<div class="flex flex-col items-center gap-6 px-8 max-w-7xl mx-auto">
+<div class="text-primary font-bold text-lg">Manish Cafe &amp; Cyber Zone</div>
+<div class="flex gap-8">
+<a class="text-slate-600 hover:text-secondary font-label-lg transition-colors" href="#">Privacy Policy</a>
+<a class="text-slate-600 hover:text-secondary font-label-lg transition-colors" href="#">Terms of Service</a>
+<a class="text-slate-600 hover:text-secondary font-label-lg transition-colors" href="#">Contact Us</a>
+</div>
+<p class="text-slate-500 font-body-md">© 2024 Manish Cafe &amp; Cyber Zone. All rights reserved.</p>
+</div>
+</footer>
+</main>
+<!-- Bottom Nav Bar (Hidden on desktop as per rules, but included for responsiveness if needed) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+<a class="flex flex-col items-center justify-center text-slate-500" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-[10px] font-medium">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500" href="#">
+<span class="material-symbols-outlined" data-icon="sports_esports">sports_esports</span>
+<span class="text-[10px] font-medium">Gaming</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500" href="#">
+<span class="material-symbols-outlined" data-icon="account_balance">account_balance</span>
+<span class="text-[10px] font-medium">Seva</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500" href="#">
+<span class="material-symbols-outlined" data-icon="school">school</span>
+<span class="text-[10px] font-medium">Courses</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-slate-100 text-orange-600 rounded-xl px-3 py-1" href="#">
+<span class="material-symbols-outlined" data-icon="admin_panel_settings">admin_panel_settings</span>
+<span class="text-[10px] font-medium">Admin</span>
+</a>
+</nav>
+</body></html>
