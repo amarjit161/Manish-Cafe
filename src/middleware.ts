@@ -64,18 +64,25 @@ export async function middleware(request: NextRequest) {
   // --- New SaaS API routes: same role gate, JSON response on failure ---
   const apiPortal = SAAS_API_PORTALS.find((p) => pathname.startsWith(p.prefix));
   if (apiPortal) {
-    const { supabase, supabaseResponse, user } = await updateSupabaseSession(request);
+    try {
+      const { supabase, supabaseResponse, user } = await updateSupabaseSession(request);
 
-    if (!user) {
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+      if (!profile || profile.role !== apiPortal.role) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+
+      return supabaseResponse;
+    } catch (err) {
+      // Fail safe rather than letting an exception (e.g. a misconfigured
+      // Supabase client) crash the whole middleware invocation.
+      console.error("Supabase session check failed in middleware (api portal)", err);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    if (!profile || profile.role !== apiPortal.role) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    return supabaseResponse;
   }
 
   // --- New SaaS portals: Supabase Auth + role-scoped access ---
@@ -84,24 +91,37 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const { supabase, supabaseResponse, user } = await updateSupabaseSession(request);
-
+  // Public auth pages never need a Supabase session lookup at all -- check
+  // this BEFORE touching Supabase, not after. Previously this ran
+  // unconditionally for every matched path, so a Supabase client
+  // construction failure took down the public login/signup pages along
+  // with everything else -- there was no way to even reach the login page
+  // to recover.
   if (portal.publicPaths.includes(pathname)) {
-    return supabaseResponse;
+    return NextResponse.next();
   }
 
-  if (!user) {
+  try {
+    const { supabase, supabaseResponse, user } = await updateSupabaseSession(request);
+
+    if (!user) {
+      return NextResponse.redirect(new URL(`${portal.prefix}/login`, request.url));
+    }
+
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+
+    if (!profile || profile.role !== portal.role) {
+      const home = profile?.role ? PORTAL_HOME[profile.role as AppRole] : `${portal.prefix}/login`;
+      return NextResponse.redirect(new URL(home, request.url));
+    }
+
+    return supabaseResponse;
+  } catch (err) {
+    // Fail safe: treat an unverifiable session as unauthenticated instead
+    // of letting the exception crash the whole middleware invocation.
+    console.error("Supabase session check failed in middleware", err);
     return NextResponse.redirect(new URL(`${portal.prefix}/login`, request.url));
   }
-
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-
-  if (!profile || profile.role !== portal.role) {
-    const home = profile?.role ? PORTAL_HOME[profile.role as AppRole] : `${portal.prefix}/login`;
-    return NextResponse.redirect(new URL(home, request.url));
-  }
-
-  return supabaseResponse;
 }
 
 export const config = {
