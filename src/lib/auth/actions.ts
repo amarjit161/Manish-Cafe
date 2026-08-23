@@ -70,10 +70,19 @@ export async function signUpCustomer(
   }
 
   const supabase = await createClient();
+  const headersList = await headers();
+  const origin = headersList.get("origin") ?? `https://${headersList.get("host")}`;
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName, phone: phone || undefined } },
+    options: {
+      data: { full_name: fullName, phone: phone || undefined },
+      // The confirmation link must come back to whichever origin the
+      // signup actually happened on (localhost in dev, a Vercel Preview
+      // URL, or production) -- never a value baked in at build time.
+      emailRedirectTo: `${origin}/auth/callback?next=${PORTAL_HOME.customer}`,
+    },
   });
 
   if (error) {
@@ -112,7 +121,10 @@ export async function requestPasswordReset(
   const origin = headersList.get("origin") ?? `https://${headersList.get("host")}`;
 
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}${PORTAL_LOGIN[role].replace("/login", "/reset-password")}`,
+    // Also routed through /auth/callback -- the recovery link arrives as a
+    // PKCE `code` just like signup confirmation, and needs the same
+    // server-side exchange before a session exists to update the password.
+    redirectTo: `${origin}/auth/callback?next=${PORTAL_LOGIN[role].replace("/login", "/reset-password")}`,
   });
 
   // Same response whether or not the account exists, so this can't be used
