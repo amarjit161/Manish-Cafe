@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+# also nested node_modules for standalone sub-packages (e.g. workers/documents)
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
