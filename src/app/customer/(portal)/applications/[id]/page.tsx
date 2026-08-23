@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 import { getApplicationDetail } from "@/lib/customer/queries";
 import { StatusBadge } from "@/components/customer/status-badge";
 import { SubmitApplicationButton } from "@/components/customer/submit-application-button";
+import { DocumentUploadForm } from "@/components/customer/document-upload-form";
 import { formatDate } from "@/lib/format";
+
+const UPLOADABLE_STATUSES = new Set(["draft", "submitted", "documents_required"]);
 
 export default async function CustomerApplicationDetailPage({
   params,
@@ -47,6 +50,8 @@ export default async function CustomerApplicationDetailPage({
                   <span className="text-body-md text-foreground">{rd.document_types?.name}</span>
                   {uploaded ? (
                     <span className="text-label-sm text-tertiary capitalize">{uploaded.status}</span>
+                  ) : UPLOADABLE_STATUSES.has(application.status) ? (
+                    <DocumentUploadForm applicationId={application.id} documentTypeId={rd.document_type_id} />
                   ) : (
                     <span className="text-label-sm text-on-surface-variant">
                       {rd.is_mandatory ? "Missing" : "Not provided"}
@@ -57,9 +62,6 @@ export default async function CustomerApplicationDetailPage({
             })}
           </ul>
         )}
-        <p className="text-label-sm text-on-surface-variant italic">
-          Document upload is coming in the next update.
-        </p>
       </section>
 
       <section className="space-y-2">

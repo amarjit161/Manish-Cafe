@@ -36,6 +36,12 @@ const SAAS_PORTALS: { prefix: string; role: AppRole; publicPaths: string[] }[] =
   },
 ];
 
+// API routes get the same role gate, but a JSON 401/403 instead of a page
+// redirect. This is a second, independent layer -- every one of these
+// routes also does its own full auth/ownership check internally and must
+// never assume this middleware ran.
+const SAAS_API_PORTALS: { prefix: string; role: AppRole }[] = [{ prefix: "/api/customer", role: "customer" }];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -53,6 +59,23 @@ export async function middleware(request: NextRequest) {
     }
 
     return NextResponse.next();
+  }
+
+  // --- New SaaS API routes: same role gate, JSON response on failure ---
+  const apiPortal = SAAS_API_PORTALS.find((p) => pathname.startsWith(p.prefix));
+  if (apiPortal) {
+    const { supabase, supabaseResponse, user } = await updateSupabaseSession(request);
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (!profile || profile.role !== apiPortal.role) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    return supabaseResponse;
   }
 
   // --- New SaaS portals: Supabase Auth + role-scoped access ---
@@ -82,5 +105,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/customer/:path*", "/retailer/:path*"],
+  matcher: ["/admin/:path*", "/customer/:path*", "/retailer/:path*", "/api/customer/:path*"],
 };

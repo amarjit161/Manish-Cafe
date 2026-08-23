@@ -1,0 +1,10 @@
+name = "manishcafe-documents"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+[[r2_buckets]]
+binding = "DOCUMENTS"
+bucket_name = "manishcafe-documents"
+
+# Set with: wrangler secret put R2_WORKER_SHARED_SECRET
+# Never set as a plain [vars] entry -- that would commit it to git.
