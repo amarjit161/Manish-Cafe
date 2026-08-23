@@ -1,7 +1,13 @@
-export default function RetailerDashboardPage() {
+import { getCurrentUserProfile } from "@/lib/auth/session";
+
+export default async function RetailerDashboardPage() {
+  const profile = await getCurrentUserProfile();
+
   return (
     <div className="space-y-6">
-      <h1 className="text-headline-lg text-foreground">Retailer Dashboard</h1>
+      <h1 className="text-headline-lg text-foreground">
+        Welcome back{profile?.full_name ? `, ${profile.full_name}` : ""}
+      </h1>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {["Today's sales", "Today's profit", "Pending applications", "Wallet balance"].map((label) => (

@@ -1,8 +1,14 @@
-export default function CustomerDashboardPage() {
+import { getCurrentUserProfile } from "@/lib/auth/session";
+
+export default async function CustomerDashboardPage() {
+  const profile = await getCurrentUserProfile();
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-surface-container-low p-6">
-        <h1 className="text-headline-md text-foreground">Welcome back</h1>
+        <h1 className="text-headline-md text-foreground">
+          Welcome back{profile?.full_name ? `, ${profile.full_name}` : ""}
+        </h1>
         <p className="text-body-md text-on-surface-variant mt-1">
           Your applications, documents and payments will appear here.
         </p>
@@ -18,7 +24,7 @@ export default function CustomerDashboardPage() {
       </div>
 
       <div className="rounded-xl border border-dashed border-outline-variant p-6 text-center text-on-surface-variant text-body-md">
-        Customer sign-in, applications and documents are coming in upcoming updates.
+        Applications and documents are coming in upcoming updates.
       </div>
     </div>
   );

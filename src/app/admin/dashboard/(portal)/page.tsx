@@ -1,7 +1,13 @@
-export default function AdminSaasDashboardPage() {
+import { getCurrentUserProfile } from "@/lib/auth/session";
+
+export default async function AdminSaasDashboardPage() {
+  const profile = await getCurrentUserProfile();
+
   return (
     <div className="space-y-6">
-      <h1 className="text-headline-lg text-foreground">Business Console</h1>
+      <h1 className="text-headline-lg text-foreground">
+        Business Console{profile?.full_name ? ` — ${profile.full_name}` : ""}
+      </h1>
       <p className="text-body-md text-on-surface-variant">
         This is the new services/applications SaaS admin, separate from the existing gaming &amp; seva
         operations dashboard.
