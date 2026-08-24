@@ -40,7 +40,7 @@ export async function getServiceWithDocuments(serviceId: string) {
   const { data: requiredDocs } = await supabase
     .from("service_document_types")
     .select(
-      "id, is_mandatory, condition_key, display_order, document_type_id, document_types(id, code, name, description)",
+      "id, is_mandatory, condition_key, display_order, document_type_id, document_types(id, code, name, description, allowed_mime_types, max_file_size_bytes)",
     )
     .eq("service_id", serviceId)
     .order("display_order");
@@ -91,7 +91,7 @@ export async function getApplicationDetail(applicationId: string) {
     supabase
       .from("service_document_types")
       .select(
-        "id, is_mandatory, condition_key, display_order, document_type_id, document_types(id, code, name, description)",
+        "id, is_mandatory, condition_key, display_order, document_type_id, document_types(id, code, name, description, allowed_mime_types, max_file_size_bytes)",
       )
       .eq("service_id", application.service_id)
       .order("display_order"),

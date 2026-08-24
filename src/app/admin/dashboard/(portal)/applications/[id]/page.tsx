@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getApplicationDetailForAdmin } from "@/lib/admin/queries";
-import { StatusBadge, DocumentStatusBadge } from "@/components/customer/status-badge";
-import { AdminDocumentPreview } from "@/components/admin-dashboard/document-preview";
-import { DocumentReviewActions } from "@/components/admin-dashboard/document-review-actions";
+import { StatusBadge } from "@/components/customer/status-badge";
+import { AdminDocumentCard, DocumentHistoryRow } from "@/components/admin-dashboard/document-card";
 import { AdminMessageThread } from "@/components/admin-dashboard/message-thread";
 import { InternalNotes } from "@/components/admin-dashboard/internal-notes";
+import { groupDocumentsByType } from "@/lib/applications/documents";
 import { buildApplicationTimeline } from "@/lib/applications/timeline";
 import { formatDate } from "@/lib/format";
 
@@ -20,6 +20,7 @@ export default async function AdminApplicationDetailPage({
 
   const { application, documents, history, messages, internalNotes } = result;
   const timeline = buildApplicationTimeline({ history, documents });
+  const grouped = groupDocumentsByType(documents);
 
   return (
     <div className="space-y-4">
@@ -52,44 +53,28 @@ export default async function AdminApplicationDetailPage({
 
       <section className="space-y-2">
         <h2 className="text-label-lg text-foreground">Documents</h2>
-        {documents.length === 0 ? (
+        {grouped.size === 0 ? (
           <p className="text-body-md text-on-surface-variant">No documents uploaded for this application.</p>
         ) : (
-          <ul className="space-y-3">
-            {documents.map((doc) => (
-              <li
-                key={doc.id}
-                className="rounded-xl bg-surface-container-lowest border border-outline-variant p-3 space-y-2"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-body-md text-foreground">
-                      {doc.document_types?.name ?? doc.document_types?.code}
-                    </p>
-                    <p className="text-label-sm text-on-surface-variant">
-                      {doc.original_filename} · uploaded {formatDate(doc.uploaded_at)}
-                    </p>
-                  </div>
-                  <DocumentStatusBadge status={doc.status} />
-                </div>
-
-                {doc.status !== "deleted" ? (
-                  <AdminDocumentPreview documentId={doc.id} mimeType={doc.mime_type} />
+          <div className="space-y-3">
+            {[...grouped.values()].map(({ current, history: olderVersions }) => (
+              <div key={current.id} className="space-y-1.5">
+                <AdminDocumentCard document={current} applicationId={application.id} />
+                {olderVersions.length > 0 ? (
+                  <details className="pl-2">
+                    <summary className="cursor-pointer text-label-sm text-on-surface-variant">
+                      {olderVersions.length} previous version{olderVersions.length > 1 ? "s" : ""}
+                    </summary>
+                    <div className="mt-1.5 space-y-1.5">
+                      {olderVersions.map((doc) => (
+                        <DocumentHistoryRow key={doc.id} document={doc} />
+                      ))}
+                    </div>
+                  </details>
                 ) : null}
-
-                {doc.status === "rejected" && doc.rejection_reason ? (
-                  <p className="text-label-sm text-error">Rejection reason: {doc.rejection_reason}</p>
-                ) : null}
-                {doc.status === "reupload_required" && doc.reupload_message ? (
-                  <p className="text-label-sm text-error">Re-upload requested: {doc.reupload_message}</p>
-                ) : null}
-
-                {doc.status !== "deleted" ? (
-                  <DocumentReviewActions documentId={doc.id} applicationId={application.id} />
-                ) : null}
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
@@ -100,24 +85,27 @@ export default async function AdminApplicationDetailPage({
 
       <InternalNotes applicationId={application.id} notes={internalNotes} />
 
-      <section className="space-y-2">
-        <h2 className="text-label-lg text-foreground">Timeline</h2>
+      <details className="space-y-2">
+        <summary className="cursor-pointer text-label-lg text-foreground">Activity history</summary>
         {timeline.length === 0 ? (
           <p className="text-body-md text-on-surface-variant">No activity recorded yet.</p>
         ) : (
-          <ol className="space-y-2">
+          <ol className="mt-2 space-y-2">
             {timeline.map((event, i) => (
               <li
                 key={`${event.at}-${i}`}
                 className="rounded-xl bg-surface-container-lowest border border-outline-variant p-3 flex items-center justify-between gap-3"
               >
-                <span className="text-body-md text-foreground">{event.label}</span>
+                <div>
+                  <p className="text-body-md text-foreground">{event.title}</p>
+                  {event.detail ? <p className="text-label-sm text-on-surface-variant">{event.detail}</p> : null}
+                </div>
                 <span className="text-label-sm text-on-surface-variant whitespace-nowrap">{formatDate(event.at)}</span>
               </li>
             ))}
           </ol>
         )}
-      </section>
+      </details>
     </div>
   );
 }

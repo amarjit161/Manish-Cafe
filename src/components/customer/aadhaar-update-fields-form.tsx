@@ -15,34 +15,35 @@ const FIELDS = [
 ];
 
 /**
- * Persists into applications.answers.update_fields, the same generic
- * column isDocumentRequired() reads to decide whether address_proof (or
- * any other conditionally-required document) currently applies. Selecting
- * "Address" here is what turns Address Proof from optional to required.
+ * Persists into applications.answers ({ update_fields, other_text }), the
+ * same generic column isDocumentRequired() reads to decide whether
+ * address_proof (or any other conditionally-required document) currently
+ * applies. Selecting "Address" here is what turns Address Proof from
+ * optional to required -- nothing about this is Aadhaar-specific in the
+ * requirements engine itself, only this form's field list is.
  */
 export function AadhaarUpdateFieldsForm({
   applicationId,
   initialFields,
+  initialOtherText,
   disabled,
 }: {
   applicationId: string;
   initialFields: string[];
+  initialOtherText: string;
   disabled: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>(initialFields);
+  const [otherText, setOtherText] = useState(initialOtherText);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function toggle(key: string) {
-    if (disabled || isPending) return;
-    const next = selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key];
-    setSelected(next);
+  function save(nextSelected: string[], nextOtherText: string) {
     startTransition(async () => {
-      const result = await updateApplicationAnswers(applicationId, next);
+      const result = await updateApplicationAnswers(applicationId, nextSelected, nextOtherText);
       if (result?.error) {
         setError(result.error);
-        setSelected(selected);
       } else {
         setError(null);
         router.refresh();
@@ -50,26 +51,51 @@ export function AadhaarUpdateFieldsForm({
     });
   }
 
+  function toggle(key: string) {
+    if (disabled || isPending) return;
+    const next = selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key];
+    setSelected(next);
+    save(next, otherText);
+  }
+
+  function commitOtherText() {
+    if (disabled || isPending) return;
+    save(selected, otherText);
+  }
+
   return (
-    <div className="space-y-2 rounded-2xl bg-surface-container-low p-4">
+    <div className="space-y-3 rounded-2xl bg-surface-container-low p-4">
       <p className="text-label-lg text-foreground">What do you want to update?</p>
-      <div className="flex flex-wrap gap-2">
+      <div className="space-y-2">
         {FIELDS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            disabled={disabled || isPending}
-            onClick={() => toggle(f.key)}
-            className={`rounded-full px-3 py-1.5 text-label-sm border transition-colors disabled:opacity-60 ${
-              selected.includes(f.key)
-                ? "bg-primary text-on-primary border-primary"
-                : "bg-surface-container-lowest text-foreground border-outline-variant"
-            }`}
-          >
+          <label key={f.key} className="flex items-center gap-2 text-body-md text-foreground">
+            <input
+              type="checkbox"
+              checked={selected.includes(f.key)}
+              disabled={disabled || isPending}
+              onChange={() => toggle(f.key)}
+              className="h-4 w-4 rounded border-outline-variant accent-primary disabled:opacity-60"
+            />
             {f.label}
-          </button>
+          </label>
         ))}
       </div>
+
+      {selected.includes("other") ? (
+        <div className="space-y-1 pl-6">
+          <label className="text-label-sm text-on-surface-variant">Please specify:</label>
+          <input
+            type="text"
+            value={otherText}
+            disabled={disabled || isPending}
+            onChange={(e) => setOtherText(e.target.value)}
+            onBlur={commitOtherText}
+            placeholder="What else do you want to update?"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground disabled:opacity-60"
+          />
+        </div>
+      ) : null}
+
       {error ? <p className="text-label-sm text-error">{error}</p> : null}
       {disabled ? (
         <p className="text-label-sm text-on-surface-variant">

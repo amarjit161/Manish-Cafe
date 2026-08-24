@@ -146,12 +146,15 @@ export async function submitApplication(
 export async function updateApplicationAnswers(
   applicationId: string,
   updateFields: string[],
+  otherText?: string,
 ): Promise<ActionState> {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("applications")
-    .update({ answers: { update_fields: updateFields } })
-    .eq("id", applicationId);
+  const answers: Record<string, string[] | string> = { update_fields: updateFields };
+  if (updateFields.includes("other") && otherText?.trim()) {
+    answers.other_text = otherText.trim();
+  }
+
+  const { error } = await supabase.from("applications").update({ answers }).eq("id", applicationId);
 
   if (error) {
     return { error: "Could not save your answers. Please try again." };

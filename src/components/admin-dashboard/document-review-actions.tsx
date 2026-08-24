@@ -9,12 +9,20 @@ import {
 } from "@/lib/admin/actions";
 import { SubmitButton } from "@/components/auth/submit-button";
 
+/**
+ * Status-aware: an already-approved (or deleted) document gets no review
+ * actions at all -- just a confirmation line -- both here and, redundantly,
+ * enforced server-side in admin/actions.ts (loadReviewableDocument). The UI
+ * hiding these buttons is a convenience, not the security boundary.
+ */
 export function DocumentReviewActions({
   documentId,
   applicationId,
+  status,
 }: {
   documentId: string;
   applicationId: string;
+  status: string;
 }) {
   const [approveState, approveAction] = useActionState<ActionState, FormData>(
     approveDocument.bind(null, documentId, applicationId),
@@ -30,6 +38,13 @@ export function DocumentReviewActions({
   );
 
   const [openPanel, setOpenPanel] = useState<"reject" | "reupload" | null>(null);
+
+  if (status === "approved") {
+    return <p className="text-label-sm text-tertiary font-medium">✓ Approved — no further action needed.</p>;
+  }
+  if (status === "deleted") {
+    return null;
+  }
 
   return (
     <div className="space-y-2">

@@ -26,6 +26,47 @@ async function requireAdminUser(supabase: SupabaseServerClient) {
 }
 
 /**
+ * A document that is already approved or deleted is a terminal state for
+ * these actions -- "approve an approved document", "reject an approved
+ * document", etc. are not valid transitions. This is enforced here, not
+ * just by hiding buttons in the UI: a direct call to the action with a
+ * stale document id must fail the same way a forged request would.
+ *
+ * A re-upload also always creates a NEW application_documents row rather
+ * than mutating the old one (see the upload route), so the old row is kept
+ * purely for audit history -- review actions must only ever apply to the
+ * current (latest-uploaded) row for that document type, never a
+ * superseded historical one.
+ */
+async function loadReviewableDocument(supabase: SupabaseServerClient, documentId: string) {
+  const { data: doc } = await supabase
+    .from("application_documents")
+    .select("id, application_id, document_type_id, status, uploaded_at")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!doc) return { doc: null, error: "Document not found." };
+
+  if (doc.status === "approved" || doc.status === "deleted") {
+    return { doc: null, error: `This document is already ${doc.status} and cannot be changed.` };
+  }
+
+  const { data: latest } = await supabase
+    .from("application_documents")
+    .select("id")
+    .eq("application_id", doc.application_id)
+    .eq("document_type_id", doc.document_type_id)
+    .order("uploaded_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (latest?.id !== doc.id) {
+    return { doc: null, error: "This is a previous version of this document and can no longer be reviewed." };
+  }
+
+  return { doc, error: null };
+}
+
+/**
  * A rejection or re-upload request always means the application needs more
  * from the customer. Only nudges the status when the application has
  * actually been submitted -- a still-draft application's documents aren't
@@ -104,6 +145,9 @@ export async function approveDocument(
   const user = await requireAdminUser(supabase);
   if (!user) return { error: "Unauthorized." };
 
+  const { error: reviewError } = await loadReviewableDocument(supabase, documentId);
+  if (reviewError) return { error: reviewError };
+
   const { error } = await supabase
     .from("application_documents")
     .update({
@@ -135,6 +179,9 @@ export async function rejectDocument(
   const user = await requireAdminUser(supabase);
   if (!user) return { error: "Unauthorized." };
 
+  const { error: reviewError } = await loadReviewableDocument(supabase, documentId);
+  if (reviewError) return { error: reviewError };
+
   const { error } = await supabase
     .from("application_documents")
     .update({
@@ -165,6 +212,9 @@ export async function requestDocumentReupload(
   const supabase = await createClient();
   const user = await requireAdminUser(supabase);
   if (!user) return { error: "Unauthorized." };
+
+  const { error: reviewError } = await loadReviewableDocument(supabase, documentId);
+  if (reviewError) return { error: reviewError };
 
   const { error } = await supabase
     .from("application_documents")

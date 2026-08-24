@@ -1,16 +1,18 @@
 import { notFound } from "next/navigation";
 import { getApplicationDetail } from "@/lib/customer/queries";
-import { StatusBadge, DocumentStatusBadge } from "@/components/customer/status-badge";
+import { StatusBadge } from "@/components/customer/status-badge";
 import { SubmitApplicationButton } from "@/components/customer/submit-application-button";
-import { DocumentUploadForm } from "@/components/customer/document-upload-form";
+import { DocumentReviewCard } from "@/components/customer/document-review-card";
 import { AadhaarUpdateFieldsForm } from "@/components/customer/aadhaar-update-fields-form";
 import { CustomerMessageThread } from "@/components/customer/message-thread";
+import { ApplicationProgressView, ActionRequiredBanner } from "@/components/customer/application-progress";
 import { isDocumentRequired } from "@/lib/applications/requirements";
+import { computeApplicationProgress } from "@/lib/applications/progress";
+import { groupDocumentsByType } from "@/lib/applications/documents";
 import { buildApplicationTimeline } from "@/lib/applications/timeline";
 import { formatDate } from "@/lib/format";
 
 const UPLOADABLE_STATUSES = new Set(["draft", "submitted", "documents_required"]);
-const NON_CURRENT_DOCUMENT_STATUSES = new Set(["rejected", "reupload_required", "deleted"]);
 
 export default async function CustomerApplicationDetailPage({
   params,
@@ -25,7 +27,29 @@ export default async function CustomerApplicationDetailPage({
   const timeline = buildApplicationTimeline({ history, documents });
   const answers = (application.answers ?? {}) as Record<string, unknown>;
   const updateFields = Array.isArray(answers.update_fields) ? (answers.update_fields as string[]) : [];
+  const otherText = typeof answers.other_text === "string" ? answers.other_text : "";
   const canUpload = UPLOADABLE_STATUSES.has(application.status);
+
+  const groupedDocs = groupDocumentsByType(documents);
+  const requiredDocRows = requiredDocs.map((rd) => ({
+    typeId: rd.document_type_id,
+    docType: rd.document_types,
+    currentlyRequired: isDocumentRequired(rd.condition_key, rd.is_mandatory, answers),
+    current: groupedDocs.get(rd.document_type_id)?.current,
+  }));
+
+  const progress = computeApplicationProgress({
+    applicationStatus: application.status,
+    currentRequiredDocuments: requiredDocRows
+      .filter((r) => r.currentlyRequired && r.current)
+      .map((r) => ({
+        id: r.current!.id,
+        status: r.current!.status,
+        rejection_reason: r.current!.rejection_reason,
+        reupload_message: r.current!.reupload_message,
+        documentTypeName: r.docType?.name ?? "Document",
+      })),
+  });
 
   return (
     <div className="space-y-4">
@@ -41,58 +65,40 @@ export default async function CustomerApplicationDetailPage({
         <p className="text-headline-md text-foreground">₹{application.customer_price_snapshot}</p>
       </div>
 
+      <ActionRequiredBanner progress={progress} />
+
       {application.services?.slug === "aadhaar-card-update" ? (
         <AadhaarUpdateFieldsForm
           applicationId={application.id}
           initialFields={updateFields}
+          initialOtherText={otherText}
           disabled={application.status !== "draft"}
         />
       ) : null}
 
       {application.status === "draft" ? <SubmitApplicationButton applicationId={application.id} /> : null}
 
+      <ApplicationProgressView progress={progress} />
+
       <section className="space-y-2">
         <h2 className="text-label-lg text-foreground">Documents</h2>
-        {requiredDocs.length === 0 ? (
+        {requiredDocRows.length === 0 ? (
           <p className="text-body-md text-on-surface-variant">No documents required for this service.</p>
         ) : (
-          <ul className="space-y-2">
-            {requiredDocs.map((rd) => {
-              const currentlyRequired = isDocumentRequired(rd.condition_key, rd.is_mandatory, answers);
-              const latest = documents.find((d) => d.document_type_id === rd.document_type_id);
-              const needsUpload = !latest || NON_CURRENT_DOCUMENT_STATUSES.has(latest.status);
-
-              return (
-                <li
-                  key={rd.id}
-                  className="rounded-xl bg-surface-container-lowest border border-outline-variant p-3 space-y-1"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-body-md text-foreground">{rd.document_types?.name}</span>
-                    {latest ? <DocumentStatusBadge status={latest.status} /> : null}
-                  </div>
-
-                  {!currentlyRequired ? (
-                    <p className="text-label-sm text-on-surface-variant">Not required based on your answers.</p>
-                  ) : latest?.status === "rejected" && latest.rejection_reason ? (
-                    <p className="text-label-sm text-error">Rejected: {latest.rejection_reason}</p>
-                  ) : latest?.status === "reupload_required" && latest.reupload_message ? (
-                    <p className="text-label-sm text-error">Re-upload required: {latest.reupload_message}</p>
-                  ) : null}
-
-                  {currentlyRequired && needsUpload && canUpload ? (
-                    <DocumentUploadForm
-                      applicationId={application.id}
-                      documentTypeId={rd.document_type_id}
-                      label={latest ? "Replace" : "Upload"}
-                    />
-                  ) : currentlyRequired && !latest ? (
-                    <span className="text-label-sm text-error">Missing</span>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
+          <div className="space-y-2">
+            {requiredDocRows.map((row) =>
+              row.docType ? (
+                <DocumentReviewCard
+                  key={row.typeId}
+                  applicationId={application.id}
+                  documentType={row.docType}
+                  current={row.current}
+                  currentlyRequired={row.currentlyRequired}
+                  canUpload={canUpload}
+                />
+              ) : null,
+            )}
+          </div>
         )}
       </section>
 
@@ -101,24 +107,27 @@ export default async function CustomerApplicationDetailPage({
         <CustomerMessageThread applicationId={application.id} messages={messages} />
       </section>
 
-      <section className="space-y-2">
-        <h2 className="text-label-lg text-foreground">Timeline</h2>
+      <details className="space-y-2">
+        <summary className="cursor-pointer text-label-lg text-foreground">Activity history</summary>
         {timeline.length === 0 ? (
           <p className="text-body-md text-on-surface-variant">No activity yet.</p>
         ) : (
-          <ol className="space-y-2">
+          <ol className="mt-2 space-y-2">
             {timeline.map((event, i) => (
               <li
                 key={`${event.at}-${i}`}
                 className="rounded-xl bg-surface-container-lowest border border-outline-variant p-3 flex items-center justify-between gap-3"
               >
-                <span className="text-body-md text-foreground">{event.label}</span>
+                <div>
+                  <p className="text-body-md text-foreground">{event.title}</p>
+                  {event.detail ? <p className="text-label-sm text-on-surface-variant">{event.detail}</p> : null}
+                </div>
                 <span className="text-label-sm text-on-surface-variant whitespace-nowrap">{formatDate(event.at)}</span>
               </li>
             ))}
           </ol>
         )}
-      </section>
+      </details>
     </div>
   );
 }

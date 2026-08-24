@@ -1,28 +1,28 @@
-export type TimelineEvent = { at: string; label: string };
+export type TimelineEvent = { at: string; title: string; detail?: string };
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  submitted: "Submitted",
-  under_review: "Under review",
+const APPLICATION_STATUS_EVENT_TITLES: Record<string, string> = {
+  submitted: "Application submitted",
+  under_review: "Application under review",
   documents_required: "Documents required",
-  processing: "Processing",
-  completed: "Completed",
-  rejected: "Rejected",
-  cancelled: "Cancelled",
+  processing: "Application moved to processing",
+  completed: "Application completed",
+  rejected: "Application rejected",
+  cancelled: "Application cancelled",
 };
 
-const DOCUMENT_VERIFIED_LABELS: Record<string, string> = {
-  approved: "approved",
-  verified: "approved",
-  rejected: "rejected",
-  reupload_required: "sent back for re-upload",
+const DOCUMENT_VERIFIED_DETAILS: Record<string, string> = {
+  approved: "Approved",
+  verified: "Approved",
+  rejected: "Rejected",
+  reupload_required: "Re-upload requested",
 };
 
 /**
  * Merges application_status_history with document upload/review events into
  * a single chronological feed, assembled at query time from existing data
  * rather than a new dedicated events table (there is no gap to fill --
- * every event already has a timestamped source row).
+ * every event already has a timestamped source row). Event text is written
+ * in plain, customer-facing language -- no raw enum values or DB jargon.
  */
 export function buildApplicationTimeline(params: {
   history: { id: string; created_at: string; new_status: string }[];
@@ -38,18 +38,20 @@ export function buildApplicationTimeline(params: {
   const events: TimelineEvent[] = [];
 
   for (const h of params.history) {
-    events.push({ at: h.created_at, label: `Application status changed to "${STATUS_LABELS[h.new_status] ?? h.new_status}"` });
+    // "draft" is the initial state, never a transition worth showing.
+    if (h.new_status === "draft") continue;
+    events.push({ at: h.created_at, title: APPLICATION_STATUS_EVENT_TITLES[h.new_status] ?? h.new_status });
   }
 
   for (const d of params.documents) {
     const docName = d.document_types?.name ?? "Document";
-    events.push({ at: d.uploaded_at, label: `${docName} uploaded (${d.original_filename})` });
+    events.push({ at: d.uploaded_at, title: docName, detail: "Document uploaded" });
 
-    const verifiedLabel = DOCUMENT_VERIFIED_LABELS[d.status];
-    if (d.verified_at && verifiedLabel) {
-      events.push({ at: d.verified_at, label: `${docName}: ${verifiedLabel}` });
+    const verifiedDetail = DOCUMENT_VERIFIED_DETAILS[d.status];
+    if (d.verified_at && verifiedDetail) {
+      events.push({ at: d.verified_at, title: docName, detail: verifiedDetail });
     }
   }
 
-  return events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+  return events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 }
