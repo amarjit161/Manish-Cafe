@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getApplicationDetail } from "@/lib/customer/queries";
 import { ApplicationStageBadge } from "@/components/customer/status-badge";
 import { DocumentReviewCard } from "@/components/customer/document-review-card";
@@ -23,14 +24,40 @@ const NON_CURRENT_DOCUMENT_STATUSES = new Set(["rejected", "reupload_required", 
 
 export default async function CustomerApplicationDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ submitted?: string }>;
 }) {
   const { id } = await params;
+  const { submitted } = await searchParams;
   const result = await getApplicationDetail(id);
   if (!result) notFound();
 
   const { application, requiredDocs, documents, history, messages, extraCharges } = result;
+
+  if (submitted === "1" && application.status !== "draft") {
+    return (
+      <div className="space-y-4 text-center py-8">
+        <p className="text-headline-lg text-tertiary">✓</p>
+        <h1 className="text-headline-md text-foreground">Application submitted</h1>
+        <p className="text-body-md text-on-surface-variant">Your application has been received.</p>
+        <div className="rounded-2xl bg-surface-container-low p-4 inline-block">
+          <p className="text-label-sm text-on-surface-variant">Application number</p>
+          <p className="text-headline-md text-foreground">{application.application_number}</p>
+        </div>
+        <p className="text-body-md text-on-surface-variant">
+          We&rsquo;ll review your information and update you here.
+        </p>
+        <Link
+          href={`/customer/applications/${application.id}`}
+          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary text-on-primary px-6 text-label-lg font-medium"
+        >
+          View application
+        </Link>
+      </div>
+    );
+  }
   const timeline = buildApplicationTimeline({ history, documents });
   const answers = (application.answers ?? {}) as Record<string, unknown>;
   const updateFields = Array.isArray(answers.update_fields) ? (answers.update_fields as string[]) : [];
@@ -153,7 +180,7 @@ export default async function CustomerApplicationDetailPage({
           </section>
 
           <section className="space-y-2">
-            {messages.length > 0 ? <h2 className="text-label-lg text-foreground">Need help?</h2> : null}
+            {messages.length > 0 ? <h2 className="text-label-lg text-foreground">Messages</h2> : null}
             <CustomerMessageThread applicationId={application.id} messages={messages} />
           </section>
 

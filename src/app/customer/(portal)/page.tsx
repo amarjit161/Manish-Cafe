@@ -30,15 +30,15 @@ export default async function CustomerDashboardPage() {
               <Link
                 key={service.id}
                 href={`/customer/services/${service.id}`}
-                className="flex min-h-11 items-center justify-between rounded-xl bg-surface-container-lowest border border-outline-variant p-4"
+                className="flex min-h-11 items-start justify-between gap-3 rounded-xl bg-surface-container-lowest border border-outline-variant p-4"
               >
-                <div>
+                <div className="min-w-0">
                   <p className="text-body-md text-foreground font-medium">{service.name}</p>
                   {service.description ? (
                     <p className="text-label-sm text-on-surface-variant">{service.description}</p>
                   ) : null}
                 </div>
-                <span className="text-label-sm text-on-surface-variant whitespace-nowrap">₹{service.customer_price}</span>
+                <span className="text-label-sm text-on-surface-variant whitespace-nowrap shrink-0">₹{service.customer_price}</span>
               </Link>
             ))}
           </div>

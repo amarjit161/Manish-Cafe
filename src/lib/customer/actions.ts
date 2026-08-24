@@ -144,6 +144,11 @@ export async function submitApplication(
   }
 
   revalidatePath(`/customer/applications/${applicationId}`);
+  // A one-time success screen (see the "submitted" search param on the
+  // detail page) instead of silently re-rendering into the ongoing-status
+  // view -- the customer should see a clear confirmation that their
+  // submission actually went through.
+  redirect(`/customer/applications/${applicationId}?submitted=1`);
 }
 
 /**

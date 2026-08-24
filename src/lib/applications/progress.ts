@@ -39,16 +39,35 @@ export type ApplicationProgress = {
 
 const TERMINAL_STATUSES = new Set(["completed", "rejected", "cancelled"]);
 
-/** Plain-language status text -- never a raw database enum value. */
+/**
+ * Short, plain-language chip text -- never a raw database enum value, but
+ * deliberately compact (1-3 words) because this renders inside a
+ * whitespace-nowrap pill next to the application/service name. A full
+ * sentence here caused a real overflow at 360px (found via visual QA, not
+ * theoretical) once combined with a long service name. The fuller
+ * sentence for the same stage lives in STAGE_DESCRIPTIONS instead, used in
+ * banners and body copy where wrapping is fine.
+ */
 export const STAGE_LABELS: Record<ApplicationStage, string> = {
-  draft: "Continue application",
+  draft: "Draft",
   documents_required: "Action required",
-  submitted: "Application submitted",
-  under_review: "We're reviewing your application",
-  processing: "We're processing your application",
+  submitted: "Submitted",
+  under_review: "Under review",
+  processing: "Processing",
   completed: "Completed",
-  rejected: "Application rejected",
+  rejected: "Rejected",
   cancelled: "Cancelled",
+};
+
+/** The longer, friendly sentence for the same stage -- for body copy, never a pill/badge. */
+export const STAGE_DESCRIPTIONS: Partial<Record<ApplicationStage, string>> = {
+  draft: "Continue your application whenever you're ready.",
+  submitted: "Your application is currently being reviewed by Manish Cafe.",
+  under_review: "Your application is currently being reviewed by Manish Cafe.",
+  processing: "Your application is being processed by Manish Cafe.",
+  completed: "Your application is complete.",
+  rejected: "Your application was not approved.",
+  cancelled: "This application was cancelled.",
 };
 
 export const STAGE_TONES: Record<ApplicationStage, "success" | "warning" | "info" | "neutral" | "error"> = {

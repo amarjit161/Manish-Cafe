@@ -58,8 +58,8 @@ export function DocumentUploadForm({
   return (
     <div className="space-y-1">
       <label
-        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-label-lg font-medium ${
-          fullWidth ? "w-full" : ""
+        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-6 py-2.5 text-label-lg font-medium ${
+          fullWidth ? "w-full sm:w-auto" : ""
         } ${VARIANT_CLASSES[variant]} ${isPending ? "opacity-60" : "cursor-pointer"}`}
       >
         {isPending ? "Uploading…" : label}

@@ -33,12 +33,15 @@ export function CustomerMessageThread({ applicationId, messages }: { application
 
   if (messages.length === 0 && !composeOpen) {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-container-lowest border border-outline-variant p-3">
-        <p className="text-body-md text-on-surface-variant">Need help with your application?</p>
+      <div className="rounded-xl bg-surface-container-lowest border border-outline-variant p-4 space-y-2">
+        <div>
+          <p className="text-body-lg font-medium text-foreground">Have a question?</p>
+          <p className="text-body-md text-on-surface-variant">Send a message to Manish Cafe.</p>
+        </div>
         <button
           type="button"
           onClick={() => setComposeOpen(true)}
-          className="rounded-lg bg-primary text-on-primary px-3 py-1.5 text-label-sm font-medium whitespace-nowrap"
+          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary text-on-primary px-4 text-label-lg font-medium"
         >
           Message Manish Cafe
         </button>
@@ -62,14 +65,14 @@ export function CustomerMessageThread({ applicationId, messages }: { application
                   }`}
                 >
                   <p className="text-label-sm text-on-surface-variant flex items-center gap-1.5">
-                    {fromCustomer ? "You" : "Manish Cafe Team"} · {formatDate(m.created_at)}
+                    {fromCustomer ? "You" : "Manish Cafe"} · {formatDate(m.created_at)}
                     {isNew(m) ? (
                       <span className="rounded-full bg-error px-1.5 py-0.5 text-[10px] font-semibold text-on-error">
                         NEW
                       </span>
                     ) : null}
                   </p>
-                  <p className="text-body-md text-foreground whitespace-pre-wrap">{m.message}</p>
+                  <p className="text-body-md text-foreground whitespace-pre-wrap break-words">{m.message}</p>
                 </div>
               </li>
             );
@@ -81,7 +84,7 @@ export function CustomerMessageThread({ applicationId, messages }: { application
         <textarea
           name="message"
           required
-          placeholder="Message the Manish Cafe team…"
+          placeholder="Type your message…"
           className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground"
           rows={2}
         />

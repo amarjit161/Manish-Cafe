@@ -1,4 +1,4 @@
-import type { ApplicationProgress } from "@/lib/applications/progress";
+import { STAGE_DESCRIPTIONS, type ApplicationProgress } from "@/lib/applications/progress";
 import { DocumentUploadForm } from "@/components/customer/document-upload-form";
 
 const TERMINAL_COPY: Record<NonNullable<ApplicationProgress["terminal"]>, { icon: string; label: string }> = {
@@ -99,22 +99,17 @@ export function ActionRequiredBanner({
   );
 }
 
-const CALM_STAGE_COPY: Partial<Record<ApplicationProgress["stage"], string>> = {
-  submitted: "Your application is currently being reviewed by Manish Cafe.",
-  under_review: "Your application is currently being reviewed by Manish Cafe.",
-  processing: "Your application is being processed by Manish Cafe.",
-};
-
 /**
  * The positive counterpart to ActionRequiredBanner -- shown instead of it
  * whenever nothing needs the customer's attention, so the page never reads
  * as just "Documents required" with no further explanation. Never rendered
  * for draft (nothing submitted yet) or a terminal stage (those get their
- * own messaging from ApplicationProgressView).
+ * own messaging from ApplicationProgressView). Reuses STAGE_DESCRIPTIONS
+ * rather than keeping a second copy of the same sentences.
  */
 export function NoActionRequiredBanner({ progress }: { progress: ApplicationProgress }) {
   if (progress.actionRequired.length > 0 || progress.terminal || progress.stage === "draft") return null;
-  const detail = CALM_STAGE_COPY[progress.stage];
+  const detail = STAGE_DESCRIPTIONS[progress.stage];
   if (!detail) return null;
 
   return (
