@@ -1,13 +1,17 @@
 import { notFound } from "next/navigation";
 import { getApplicationDetail } from "@/lib/customer/queries";
-import { StatusBadge } from "@/components/customer/status-badge";
+import { ApplicationStageBadge } from "@/components/customer/status-badge";
 import { SubmitApplicationButton } from "@/components/customer/submit-application-button";
 import { DocumentReviewCard } from "@/components/customer/document-review-card";
 import { AadhaarUpdateFieldsForm } from "@/components/customer/aadhaar-update-fields-form";
 import { CustomerMessageThread } from "@/components/customer/message-thread";
-import { ApplicationProgressView, ActionRequiredBanner } from "@/components/customer/application-progress";
+import {
+  ApplicationProgressView,
+  ActionRequiredBanner,
+  NoActionRequiredBanner,
+} from "@/components/customer/application-progress";
 import { isDocumentRequired } from "@/lib/applications/requirements";
-import { computeApplicationProgress } from "@/lib/applications/progress";
+import { getApplicationProgress } from "@/lib/applications/progress";
 import { groupDocumentsByType } from "@/lib/applications/documents";
 import { buildApplicationTimeline } from "@/lib/applications/timeline";
 import { formatDate } from "@/lib/format";
@@ -38,12 +42,13 @@ export default async function CustomerApplicationDetailPage({
     current: groupedDocs.get(rd.document_type_id)?.current,
   }));
 
-  const progress = computeApplicationProgress({
+  const progress = getApplicationProgress({
     applicationStatus: application.status,
     currentRequiredDocuments: requiredDocRows
       .filter((r) => r.currentlyRequired && r.current)
       .map((r) => ({
         id: r.current!.id,
+        documentTypeId: r.typeId,
         status: r.current!.status,
         rejection_reason: r.current!.rejection_reason,
         reupload_message: r.current!.reupload_message,
@@ -56,7 +61,7 @@ export default async function CustomerApplicationDetailPage({
       <div className="rounded-2xl bg-surface-container-low p-6 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-headline-md text-foreground">{application.services?.name ?? "Application"}</h1>
-          <StatusBadge status={application.status} />
+          <ApplicationStageBadge stage={progress.stage} />
         </div>
         <p className="text-label-sm text-on-surface-variant">
           {application.application_number ?? "Draft — not yet submitted"}
@@ -65,7 +70,8 @@ export default async function CustomerApplicationDetailPage({
         <p className="text-headline-md text-foreground">₹{application.customer_price_snapshot}</p>
       </div>
 
-      <ActionRequiredBanner progress={progress} />
+      <ActionRequiredBanner applicationId={application.id} progress={progress} canUpload={canUpload} />
+      <NoActionRequiredBanner progress={progress} />
 
       {application.services?.slug === "aadhaar-card-update" ? (
         <AadhaarUpdateFieldsForm
@@ -103,7 +109,9 @@ export default async function CustomerApplicationDetailPage({
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-label-lg text-foreground">Messages</h2>
+        <h2 className={messages.length > 0 ? "text-label-lg text-foreground" : "text-label-sm text-on-surface-variant"}>
+          {messages.length > 0 ? "Messages" : "Have a question? Message the Manish Cafe team"}
+        </h2>
         <CustomerMessageThread applicationId={application.id} messages={messages} />
       </section>
 

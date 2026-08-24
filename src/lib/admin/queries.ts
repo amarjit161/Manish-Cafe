@@ -85,28 +85,36 @@ export async function getApplicationDetailForAdmin(applicationId: string) {
   if (error) throw error;
   if (!application) return null;
 
-  const [{ data: documents }, { data: history }, { data: messages }, { data: internalNotes }] = await Promise.all([
-    supabase
-      .from("application_documents")
-      .select("*, document_types(name, code)")
-      .eq("application_id", applicationId)
-      .order("uploaded_at", { ascending: false }),
-    supabase
-      .from("application_status_history")
-      .select("*")
-      .eq("application_id", applicationId)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("application_messages")
-      .select("*, profiles(full_name, role)")
-      .eq("application_id", applicationId)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("application_internal_notes")
-      .select("*, profiles(full_name)")
-      .eq("application_id", applicationId)
-      .order("created_at", { ascending: true }),
-  ]);
+  const [{ data: documents }, { data: history }, { data: messages }, { data: internalNotes }, { data: requiredDocs }] =
+    await Promise.all([
+      supabase
+        .from("application_documents")
+        .select("*, document_types(name, code)")
+        .eq("application_id", applicationId)
+        .order("uploaded_at", { ascending: false }),
+      supabase
+        .from("application_status_history")
+        .select("*")
+        .eq("application_id", applicationId)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("application_messages")
+        .select("*, profiles(full_name, role)")
+        .eq("application_id", applicationId)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("application_internal_notes")
+        .select("*, profiles(full_name)")
+        .eq("application_id", applicationId)
+        .order("created_at", { ascending: true }),
+      // Needed so the admin page can compute the exact same canonical
+      // getApplicationProgress() the customer page uses -- one status
+      // calculation reused everywhere, not a second one invented here.
+      supabase
+        .from("service_document_types")
+        .select("is_mandatory, condition_key, document_type_id, document_types(name)")
+        .eq("service_id", application.service_id),
+    ]);
 
   return {
     application,
@@ -114,5 +122,6 @@ export async function getApplicationDetailForAdmin(applicationId: string) {
     history: history ?? [],
     messages: messages ?? [],
     internalNotes: internalNotes ?? [],
+    requiredDocs: requiredDocs ?? [],
   };
 }

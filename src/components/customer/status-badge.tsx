@@ -1,4 +1,5 @@
 import type { Database } from "@/lib/supabase/database.types";
+import { STAGE_LABELS, STAGE_TONES, type ApplicationStage } from "@/lib/applications/progress";
 
 type ApplicationStatus = Database["public"]["Enums"]["application_status"];
 
@@ -62,6 +63,31 @@ export function DocumentStatusBadge({ status }: { status: DocumentStatus }) {
       className={`inline-flex items-center rounded-full px-2.5 py-1 text-label-sm font-medium whitespace-nowrap ${DOCUMENT_STATUS_STYLES[status]}`}
     >
       {DOCUMENT_STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+const STAGE_TONE_STYLES: Record<(typeof STAGE_TONES)[ApplicationStage], string> = {
+  success: "bg-tertiary text-on-tertiary",
+  warning: "bg-error-container text-on-error-container",
+  info: "bg-secondary-container text-on-secondary-container",
+  neutral: "bg-surface-container-high text-on-surface-variant",
+  error: "bg-error-container text-on-error-container",
+};
+
+/**
+ * The one canonical application-status badge -- driven by
+ * getApplicationProgress()'s derived stage, not the raw applications.status
+ * enum. This is what a customer should see; the raw enum is an
+ * implementation detail (e.g. DB "submitted" + a rejected document reads
+ * to the customer as "Action required", not "Submitted").
+ */
+export function ApplicationStageBadge({ stage }: { stage: ApplicationStage }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-label-sm font-medium whitespace-nowrap ${STAGE_TONE_STYLES[STAGE_TONES[stage]]}`}
+    >
+      {STAGE_LABELS[stage]}
     </span>
   );
 }

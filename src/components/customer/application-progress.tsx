@@ -1,4 +1,5 @@
 import type { ApplicationProgress } from "@/lib/applications/progress";
+import { DocumentUploadForm } from "@/components/customer/document-upload-form";
 
 const TERMINAL_COPY: Record<NonNullable<ApplicationProgress["terminal"]>, { icon: string; label: string }> = {
   completed: { icon: "✓", label: "Application completed" },
@@ -14,7 +15,7 @@ function StepMarker({ state }: { state: "done" | "current" | "upcoming" }) {
 
 /**
  * The PRIMARY status indicator for the customer -- derived purely from the
- * real application/document state (computeApplicationProgress), never from
+ * real application/document state (getApplicationProgress), never from
  * hardcoded per-application text. The detailed timestamped timeline stays
  * available underneath as "Activity history", but a customer should never
  * have to read it just to know what to do next.
@@ -50,28 +51,68 @@ export function ApplicationProgressView({ progress }: { progress: ApplicationPro
 
 /**
  * The high-visibility banner shown above everything else when at least one
- * currently-required document needs the customer's attention. This is the
- * first thing a customer should see -- not something they discover by
- * reading a timeline.
+ * currently-required document needs the customer's attention -- with a
+ * direct "Replace document" control for each so the customer can act
+ * immediately without scrolling to find the matching document card. This
+ * is the first thing a customer should see, not something they discover by
+ * reading a timeline. When nothing needs attention, this renders nothing
+ * (the calm state is communicated by ApplicationProgressView instead).
  */
-export function ActionRequiredBanner({ progress }: { progress: ApplicationProgress }) {
+export function ActionRequiredBanner({
+  applicationId,
+  progress,
+  canUpload,
+}: {
+  applicationId: string;
+  progress: ApplicationProgress;
+  canUpload: boolean;
+}) {
   if (progress.actionRequired.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-error bg-error-container/30 p-4 space-y-2">
+    <div className="rounded-2xl border border-error bg-error-container/30 p-4 space-y-3">
       <p className="text-label-lg font-semibold text-error">🟠 Action required</p>
-      <p className="text-body-md text-foreground">
-        Your application needs{" "}
-        {progress.actionRequired.length === 1
-          ? "one document to be replaced"
-          : `${progress.actionRequired.length} documents to be replaced`}
-        .
-      </p>
-      <ul className="list-disc pl-5 text-body-md text-foreground space-y-0.5">
-        {progress.actionRequired.map((item) => (
-          <li key={item.documentId}>{item.documentTypeName}</li>
-        ))}
-      </ul>
+      {progress.actionRequired.map((item) => (
+        <div key={item.documentId} className="space-y-1.5 rounded-xl bg-surface-container-lowest/60 p-3">
+          <p className="text-body-md font-medium text-foreground">
+            Your {item.documentTypeName} needs to be uploaded again.
+          </p>
+          {item.reason ? (
+            <p className="text-body-md text-foreground">
+              <span className="font-medium">Reason:</span> {item.reason}
+            </p>
+          ) : null}
+          {canUpload ? (
+            <DocumentUploadForm applicationId={applicationId} documentTypeId={item.documentTypeId} label="Replace document" />
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const CALM_STAGE_COPY: Partial<Record<ApplicationProgress["stage"], string>> = {
+  submitted: "Your documents are currently being reviewed.",
+  under_review: "Your documents are currently being reviewed.",
+  processing: "Your application is being processed.",
+};
+
+/**
+ * The positive counterpart to ActionRequiredBanner -- shown instead of it
+ * whenever nothing needs the customer's attention, so the page never reads
+ * as just "Documents required" with no further explanation. Never rendered
+ * for draft (nothing submitted yet) or a terminal stage (those get their
+ * own messaging from ApplicationProgressView).
+ */
+export function NoActionRequiredBanner({ progress }: { progress: ApplicationProgress }) {
+  if (progress.actionRequired.length > 0 || progress.terminal || progress.stage === "draft") return null;
+  const detail = CALM_STAGE_COPY[progress.stage];
+  if (!detail) return null;
+
+  return (
+    <div className="rounded-2xl border border-tertiary/40 bg-tertiary-container/30 p-4">
+      <p className="text-body-lg font-medium text-tertiary">✓ No action required</p>
+      <p className="text-body-md text-foreground mt-1">{detail}</p>
     </div>
   );
 }

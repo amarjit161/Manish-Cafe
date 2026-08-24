@@ -9,11 +9,21 @@ import {
 } from "@/lib/admin/actions";
 import { SubmitButton } from "@/components/auth/submit-button";
 
+const DECISION_PENDING_STATUSES = new Set(["uploaded", "under_review"]);
+const REUPLOAD_ONLY_STATUSES = new Set(["rejected", "reupload_required"]);
+
 /**
- * Status-aware: an already-approved (or deleted) document gets no review
- * actions at all -- just a confirmation line -- both here and, redundantly,
- * enforced server-side in admin/actions.ts (loadReviewableDocument). The UI
- * hiding these buttons is a convenience, not the security boundary.
+ * Status-aware: which buttons render here must always match
+ * ALLOWED_SOURCE_STATUSES in admin/actions.ts exactly -- the server enforces
+ * the same matrix independently, so this is a convenience for the admin,
+ * never the security boundary.
+ *
+ *   uploaded / under_review  -> Approve, Reject, Request re-upload
+ *   rejected / reupload_required -> Request re-upload only (the decision
+ *                                    already happened; approving or
+ *                                    re-rejecting a document nobody has
+ *                                    replaced yet isn't a real transition)
+ *   approved / deleted       -> no actions at all
  */
 export function DocumentReviewActions({
   documentId,
@@ -46,6 +56,43 @@ export function DocumentReviewActions({
     return null;
   }
 
+  const reuploadPanel = (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpenPanel(openPanel === "reupload" ? null : "reupload")}
+        className="rounded-lg bg-surface-container-high text-foreground px-3 py-1.5 text-label-sm font-medium"
+      >
+        Request re-upload
+      </button>
+      {openPanel === "reupload" ? (
+        <form action={reuploadAction} className="w-full space-y-1 mt-2">
+          <textarea
+            name="message"
+            required
+            placeholder="What does the customer need to re-upload, and why?"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground"
+            rows={2}
+          />
+          {reuploadState?.error ? <p className="text-label-sm text-error">{reuploadState.error}</p> : null}
+          <SubmitButton className="rounded-lg bg-surface-container-high text-foreground px-3 py-1.5 text-label-sm font-medium disabled:opacity-60">
+            Send re-upload request
+          </SubmitButton>
+        </form>
+      ) : null}
+    </>
+  );
+
+  if (REUPLOAD_ONLY_STATUSES.has(status)) {
+    return <div className="flex flex-wrap items-center gap-2">{reuploadPanel}</div>;
+  }
+
+  if (!DECISION_PENDING_STATUSES.has(status)) {
+    // Any future/unknown status: fail safe by showing no actions rather
+    // than guessing.
+    return null;
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -61,13 +108,7 @@ export function DocumentReviewActions({
         >
           Reject
         </button>
-        <button
-          type="button"
-          onClick={() => setOpenPanel(openPanel === "reupload" ? null : "reupload")}
-          className="rounded-lg bg-surface-container-high text-foreground px-3 py-1.5 text-label-sm font-medium"
-        >
-          Request re-upload
-        </button>
+        {reuploadPanel}
       </div>
 
       {approveState?.error ? <p className="text-label-sm text-error">{approveState.error}</p> : null}
@@ -84,22 +125,6 @@ export function DocumentReviewActions({
           {rejectState?.error ? <p className="text-label-sm text-error">{rejectState.error}</p> : null}
           <SubmitButton className="rounded-lg bg-error-container text-on-error-container px-3 py-1.5 text-label-sm font-medium disabled:opacity-60">
             Confirm rejection
-          </SubmitButton>
-        </form>
-      ) : null}
-
-      {openPanel === "reupload" ? (
-        <form action={reuploadAction} className="space-y-1">
-          <textarea
-            name="message"
-            required
-            placeholder="What does the customer need to re-upload, and why?"
-            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground"
-            rows={2}
-          />
-          {reuploadState?.error ? <p className="text-label-sm text-error">{reuploadState.error}</p> : null}
-          <SubmitButton className="rounded-lg bg-surface-container-high text-foreground px-3 py-1.5 text-label-sm font-medium disabled:opacity-60">
-            Send re-upload request
           </SubmitButton>
         </form>
       ) : null}

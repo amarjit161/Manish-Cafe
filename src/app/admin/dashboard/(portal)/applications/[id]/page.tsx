@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getApplicationDetailForAdmin } from "@/lib/admin/queries";
-import { StatusBadge } from "@/components/customer/status-badge";
+import { ApplicationStageBadge } from "@/components/customer/status-badge";
 import { AdminDocumentCard, DocumentHistoryRow } from "@/components/admin-dashboard/document-card";
 import { AdminMessageThread } from "@/components/admin-dashboard/message-thread";
 import { InternalNotes } from "@/components/admin-dashboard/internal-notes";
 import { groupDocumentsByType } from "@/lib/applications/documents";
 import { buildApplicationTimeline } from "@/lib/applications/timeline";
+import { getApplicationProgress } from "@/lib/applications/progress";
+import { isDocumentRequired } from "@/lib/applications/requirements";
 import { formatDate } from "@/lib/format";
 
 export default async function AdminApplicationDetailPage({
@@ -18,9 +20,26 @@ export default async function AdminApplicationDetailPage({
   const result = await getApplicationDetailForAdmin(id);
   if (!result) notFound();
 
-  const { application, documents, history, messages, internalNotes } = result;
+  const { application, documents, history, messages, internalNotes, requiredDocs } = result;
   const timeline = buildApplicationTimeline({ history, documents });
   const grouped = groupDocumentsByType(documents);
+
+  const answers = (application.answers ?? {}) as Record<string, unknown>;
+  const progress = getApplicationProgress({
+    applicationStatus: application.status,
+    currentRequiredDocuments: requiredDocs
+      .filter((rd) => isDocumentRequired(rd.condition_key, rd.is_mandatory, answers))
+      .map((rd) => grouped.get(rd.document_type_id)?.current)
+      .filter((doc): doc is NonNullable<typeof doc> => !!doc)
+      .map((doc) => ({
+        id: doc.id,
+        documentTypeId: doc.document_type_id,
+        status: doc.status,
+        rejection_reason: doc.rejection_reason,
+        reupload_message: doc.reupload_message,
+        documentTypeName: doc.document_types?.name ?? "Document",
+      })),
+  });
 
   return (
     <div className="space-y-4">
@@ -31,10 +50,11 @@ export default async function AdminApplicationDetailPage({
       <div className="rounded-2xl bg-surface-container-low p-6 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-headline-md text-foreground">{application.services?.name ?? "Application"}</h1>
-          <StatusBadge status={application.status} />
+          <ApplicationStageBadge stage={progress.stage} />
         </div>
         <p className="text-label-sm text-on-surface-variant">
           {application.application_number ?? "Draft — not yet submitted"}
+          {progress.stage !== application.status ? ` · raw status: ${application.status}` : ""}
         </p>
         <p className="text-body-md text-foreground">
           Customer: {application.customers?.full_name ?? "—"}

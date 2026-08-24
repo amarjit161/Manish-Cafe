@@ -13,27 +13,47 @@ export function CustomerMessageThread({ applicationId, messages }: { application
     undefined,
   );
 
+  // "New" is derived, not stored: an admin message counts as new to the
+  // customer if it arrived after the customer's own last reply (or if the
+  // customer hasn't replied at all yet). This needs no schema/RLS change --
+  // application_messages has no UPDATE policy, and adding one just to track
+  // read state isn't justified for a cosmetic badge.
+  const lastCustomerMessageAt = [...messages]
+    .reverse()
+    .find((m) => m.sender_role === "customer")?.created_at;
+  const isNew = (m: Message) =>
+    m.sender_role !== "customer" && (!lastCustomerMessageAt || m.created_at > lastCustomerMessageAt);
+
   return (
     <div className="space-y-3">
-      {messages.length === 0 ? (
-        <p className="text-body-md text-on-surface-variant">No messages yet.</p>
-      ) : (
+      {messages.length > 0 ? (
         <ul className="space-y-2">
-          {messages.map((m) => (
-            <li
-              key={m.id}
-              className={`rounded-xl border border-outline-variant p-3 ${
-                m.sender_role === "customer" ? "bg-primary-container" : "bg-surface-container-lowest"
-              }`}
-            >
-              <p className="text-label-sm text-on-surface-variant">
-                {m.sender_role === "customer" ? "You" : "Manish Cafe team"} · {formatDate(m.created_at)}
-              </p>
-              <p className="text-body-md text-foreground whitespace-pre-wrap">{m.message}</p>
-            </li>
-          ))}
+          {messages.map((m) => {
+            const fromCustomer = m.sender_role === "customer";
+            return (
+              <li key={m.id} className={`flex ${fromCustomer ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[85%] rounded-xl border p-3 ${
+                    fromCustomer
+                      ? "border-primary/30 bg-primary-container"
+                      : "border-outline-variant bg-surface-container-lowest"
+                  }`}
+                >
+                  <p className="text-label-sm text-on-surface-variant flex items-center gap-1.5">
+                    {fromCustomer ? "You" : "Manish Cafe Team"} · {formatDate(m.created_at)}
+                    {isNew(m) ? (
+                      <span className="rounded-full bg-error px-1.5 py-0.5 text-[10px] font-semibold text-on-error">
+                        NEW
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="text-body-md text-foreground whitespace-pre-wrap">{m.message}</p>
+                </div>
+              </li>
+            );
+          })}
         </ul>
-      )}
+      ) : null}
 
       <form action={formAction} className="space-y-1">
         <textarea

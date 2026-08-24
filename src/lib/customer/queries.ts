@@ -68,21 +68,28 @@ export async function getMyApplications() {
   return data;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * A single application by id, with its required documents, submitted
- * documents, and status timeline. Ownership is NOT checked here in
- * application code -- RLS on applications/application_documents/
+ * A single application by either its internal UUID or its customer-facing
+ * application_number (e.g. "MC-2026-000005") -- accepting the friendlier
+ * identifier is purely a URL/UX convenience. It changes nothing about the
+ * security boundary: ownership is NOT checked here in application code,
+ * either way. RLS on applications/application_documents/
  * application_status_history already denies any row that doesn't belong
- * to the caller, so an id for another customer's application resolves to
- * null (rendered as 404), not a leaked record.
+ * to the caller, so a reference for another customer's application
+ * resolves to null (rendered as 404), not a leaked record. A draft
+ * application has no application_number yet, so it can only ever be
+ * reached by its UUID until it's submitted.
  */
-export async function getApplicationDetail(applicationId: string) {
+export async function getApplicationDetail(applicationRef: string) {
   const supabase = await createClient();
 
+  const lookupColumn = UUID_PATTERN.test(applicationRef) ? "id" : "application_number";
   const { data: application, error } = await supabase
     .from("applications")
     .select("*, services(id, name, description, category, slug)")
-    .eq("id", applicationId)
+    .eq(lookupColumn, applicationRef)
     .maybeSingle();
   if (error) throw error;
   if (!application) return null;
@@ -98,12 +105,12 @@ export async function getApplicationDetail(applicationId: string) {
     supabase
       .from("application_documents")
       .select("*, document_types(name, code)")
-      .eq("application_id", applicationId)
+      .eq("application_id", application.id)
       .order("uploaded_at", { ascending: false }),
     supabase
       .from("application_status_history")
       .select("*")
-      .eq("application_id", applicationId)
+      .eq("application_id", application.id)
       .order("created_at", { ascending: true }),
     // application_messages_select scopes this to the caller's own
     // application (or their retailer's) -- never returns rows for someone
@@ -113,7 +120,7 @@ export async function getApplicationDetail(applicationId: string) {
     supabase
       .from("application_messages")
       .select("*")
-      .eq("application_id", applicationId)
+      .eq("application_id", application.id)
       .order("created_at", { ascending: true }),
   ]);
 

@@ -54,7 +54,7 @@ export default async function CustomerDashboardPage() {
             {recent.map((app) => (
               <li key={app.id}>
                 <Link
-                  href={`/customer/applications/${app.id}`}
+                  href={`/customer/applications/${app.application_number ?? app.id}`}
                   className="block rounded-xl bg-surface-container-lowest border border-outline-variant p-4"
                 >
                   <div className="flex items-center justify-between gap-2">

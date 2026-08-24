@@ -25,19 +25,24 @@ export function AdminMessageThread({ applicationId, messages }: { applicationId:
         <p className="text-body-md text-on-surface-variant">No messages yet.</p>
       ) : (
         <ul className="space-y-2">
-          {messages.map((m) => (
-            <li
-              key={m.id}
-              className={`rounded-xl border border-outline-variant p-3 ${
-                m.sender_role === "admin" ? "bg-primary-container" : "bg-surface-container-lowest"
-              }`}
-            >
-              <p className="text-label-sm text-on-surface-variant">
-                {m.profiles?.full_name ?? m.sender_role} · {formatDate(m.created_at)}
-              </p>
-              <p className="text-body-md text-foreground whitespace-pre-wrap">{m.message}</p>
-            </li>
-          ))}
+          {messages.map((m) => {
+            const fromAdmin = m.sender_role === "admin";
+            return (
+              <li key={m.id} className={`flex ${fromAdmin ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[85%] rounded-xl border p-3 ${
+                    fromAdmin ? "border-primary/30 bg-primary-container" : "border-outline-variant bg-surface-container-lowest"
+                  }`}
+                >
+                  <p className="text-label-sm text-on-surface-variant">
+                    {fromAdmin ? (m.profiles?.full_name ?? "You") : (m.profiles?.full_name ?? "Customer")} ·{" "}
+                    {formatDate(m.created_at)}
+                  </p>
+                  <p className="text-body-md text-foreground whitespace-pre-wrap">{m.message}</p>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 
