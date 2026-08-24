@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 export function DocumentUploadForm({
   applicationId,
   documentTypeId,
+  label = "Upload",
 }: {
   applicationId: string;
   documentTypeId: string;
+  label?: string;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export function DocumentUploadForm({
           isPending ? "opacity-60" : "cursor-pointer hover:bg-surface-container-low"
         }`}
       >
-        {isPending ? "Uploading…" : "Upload"}
+        {isPending ? "Uploading…" : label}
         <input
           type="file"
           className="hidden"

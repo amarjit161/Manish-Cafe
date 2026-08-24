@@ -60,7 +60,9 @@ export type Database = {
           mime_type: string
           original_filename: string
           r2_object_key: string
+          rejection_reason: string | null
           retention_until: string | null
+          reupload_message: string | null
           status: Database["public"]["Enums"]["document_status"]
           updated_at: string
           uploaded_at: string
@@ -80,7 +82,9 @@ export type Database = {
           mime_type: string
           original_filename: string
           r2_object_key: string
+          rejection_reason?: string | null
           retention_until?: string | null
+          reupload_message?: string | null
           status?: Database["public"]["Enums"]["document_status"]
           updated_at?: string
           uploaded_at?: string
@@ -100,7 +104,9 @@ export type Database = {
           mime_type?: string
           original_filename?: string
           r2_object_key?: string
+          rejection_reason?: string | null
           retention_until?: string | null
+          reupload_message?: string | null
           status?: Database["public"]["Enums"]["document_status"]
           updated_at?: string
           uploaded_at?: string
@@ -172,6 +178,90 @@ export type Database = {
           },
         ]
       }
+      application_internal_notes: {
+        Row: {
+          application_id: string
+          author_profile_id: string
+          created_at: string
+          id: string
+          note: string
+        }
+        Insert: {
+          application_id: string
+          author_profile_id: string
+          created_at?: string
+          id?: string
+          note: string
+        }
+        Update: {
+          application_id?: string
+          author_profile_id?: string
+          created_at?: string
+          id?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_internal_notes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_internal_notes_author_profile_id_fkey"
+            columns: ["author_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      application_messages: {
+        Row: {
+          application_id: string
+          created_at: string
+          id: string
+          message: string
+          read_at: string | null
+          sender_profile_id: string
+          sender_role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          id?: string
+          message: string
+          read_at?: string | null
+          sender_profile_id: string
+          sender_role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          id?: string
+          message?: string
+          read_at?: string | null
+          sender_profile_id?: string
+          sender_role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_messages_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_messages_sender_profile_id_fkey"
+            columns: ["sender_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       application_status_history: {
         Row: {
           application_id: string
@@ -225,6 +315,7 @@ export type Database = {
       }
       applications: {
         Row: {
+          answers: Json
           application_number: string | null
           assigned_profile_id: string | null
           completed_at: string | null
@@ -241,6 +332,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          answers?: Json
           application_number?: string | null
           assigned_profile_id?: string | null
           completed_at?: string | null
@@ -257,6 +349,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          answers?: Json
           application_number?: string | null
           assigned_profile_id?: string | null
           completed_at?: string | null
@@ -693,6 +786,7 @@ export type Database = {
       }
       service_document_types: {
         Row: {
+          condition_key: string | null
           created_at: string
           display_order: number
           document_type_id: string
@@ -701,6 +795,7 @@ export type Database = {
           service_id: string
         }
         Insert: {
+          condition_key?: string | null
           created_at?: string
           display_order?: number
           document_type_id: string
@@ -709,6 +804,7 @@ export type Database = {
           service_id: string
         }
         Update: {
+          condition_key?: string | null
           created_at?: string
           display_order?: number
           document_type_id?: string
@@ -743,6 +839,7 @@ export type Database = {
           is_active: boolean
           name: string
           retailer_id: string | null
+          slug: string | null
           updated_at: string
         }
         Insert: {
@@ -754,6 +851,7 @@ export type Database = {
           is_active?: boolean
           name: string
           retailer_id?: string | null
+          slug?: string | null
           updated_at?: string
         }
         Update: {
@@ -765,6 +863,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           retailer_id?: string | null
+          slug?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -887,7 +986,14 @@ export type Database = {
         | "ACTIVE"
         | "COMPLETED"
         | "CANCELLED"
-      document_status: "uploaded" | "verified" | "rejected" | "deleted"
+      document_status:
+        | "uploaded"
+        | "verified"
+        | "rejected"
+        | "deleted"
+        | "under_review"
+        | "approved"
+        | "reupload_required"
       EnquiryStatus: "NEW" | "FOLLOW_UP" | "ENROLLED" | "CLOSED"
       SevaStatus: "PENDING" | "IN_PROGRESS" | "VERIFIED" | "COMPLETED"
       StationType: "PC" | "CONSOLE"
@@ -1037,7 +1143,15 @@ export const Constants = {
         "COMPLETED",
         "CANCELLED",
       ],
-      document_status: ["uploaded", "verified", "rejected", "deleted"],
+      document_status: [
+        "uploaded",
+        "verified",
+        "rejected",
+        "deleted",
+        "under_review",
+        "approved",
+        "reupload_required",
+      ],
       EnquiryStatus: ["NEW", "FOLLOW_UP", "ENROLLED", "CLOSED"],
       SevaStatus: ["PENDING", "IN_PROGRESS", "VERIFIED", "COMPLETED"],
       StationType: ["PC", "CONSOLE"],

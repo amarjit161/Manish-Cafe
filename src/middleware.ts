@@ -40,7 +40,10 @@ const SAAS_PORTALS: { prefix: string; role: AppRole; publicPaths: string[] }[] =
 // redirect. This is a second, independent layer -- every one of these
 // routes also does its own full auth/ownership check internally and must
 // never assume this middleware ran.
-const SAAS_API_PORTALS: { prefix: string; role: AppRole }[] = [{ prefix: "/api/customer", role: "customer" }];
+const SAAS_API_PORTALS: { prefix: string; role: AppRole }[] = [
+  { prefix: "/api/customer", role: "customer" },
+  { prefix: "/api/admin", role: "admin" },
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -125,5 +128,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/customer/:path*", "/retailer/:path*", "/api/customer/:path*"],
+  matcher: ["/admin/:path*", "/customer/:path*", "/retailer/:path*", "/api/customer/:path*", "/api/admin/:path*"],
 };

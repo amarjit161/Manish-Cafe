@@ -40,6 +40,36 @@ export async function uploadToR2Worker(
   }
 }
 
+export type R2FetchResult = { body: ReadableStream<Uint8Array>; contentType: string; contentLength: number } | null;
+
+/**
+ * Retrieves a document's bytes through the Worker. Returns null on any
+ * failure (not-found, network error, etc.) rather than throwing, so
+ * callers can turn that into a clean 404 instead of a 500.
+ */
+export async function getFromR2Worker(objectKey: string): Promise<R2FetchResult> {
+  const workerUrl = requireEnv("R2_WORKER_URL");
+  const secret = requireEnv("R2_WORKER_SHARED_SECRET");
+
+  try {
+    const res = await fetch(`${workerUrl}/object?key=${encodeURIComponent(objectKey)}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${secret}` },
+      cache: "no-store",
+    });
+    if (!res.ok || !res.body) return null;
+
+    return {
+      body: res.body,
+      contentType: res.headers.get("content-type") ?? "application/octet-stream",
+      contentLength: Number(res.headers.get("content-length") ?? "0"),
+    };
+  } catch (err) {
+    console.error("R2 worker get request failed", err);
+    return null;
+  }
+}
+
 /**
  * Used to roll back an R2 write when the follow-up Supabase metadata
  * insert fails, so a document never exists in R2 without a corresponding

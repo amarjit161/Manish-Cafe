@@ -19,6 +19,9 @@ export default async function AdminSaasDashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Applications" value={stats.applicationsCount} />
         <StatCard label="Customers" value={stats.customersCount} />
+        <StatCard label="Pending document reviews" value={stats.pendingDocumentReviews} />
+        <StatCard label="Re-uploads requested" value={stats.reuploadRequiredDocuments} />
+        <StatCard label="Completed applications" value={stats.completedApplications} />
         <StatCard label="Pending payments" value={stats.pendingPayments ?? "Not implemented"} />
         <StatCard label="Open tickets" value={stats.openTickets ?? "Not implemented"} />
       </div>

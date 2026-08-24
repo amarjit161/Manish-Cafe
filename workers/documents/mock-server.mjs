@@ -66,13 +66,26 @@ const server = createServer(async (req, res) => {
       return send(res, 500, { ok: false, error: "forced_failure" });
     }
     const body = await readBody(req);
-    store.set(objectKey, { contentType: req.headers["content-type"], size: body.length });
+    store.set(objectKey, { contentType: req.headers["content-type"], size: body.length, bytes: body });
     return send(res, 200, { ok: true });
   }
 
   if (url.pathname === "/object" && req.method === "DELETE") {
     store.delete(objectKey);
     return send(res, 200, { ok: true });
+  }
+
+  if (url.pathname === "/object" && req.method === "GET") {
+    const object = store.get(objectKey);
+    if (!object) {
+      return send(res, 404, { ok: false, error: "not_found" });
+    }
+    res.writeHead(200, {
+      "content-type": object.contentType || "application/octet-stream",
+      "content-length": String(object.size),
+      "cache-control": "private, no-store",
+    });
+    return res.end(object.bytes);
   }
 
   return send(res, 404, { ok: false, error: "not_found" });

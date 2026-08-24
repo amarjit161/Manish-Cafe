@@ -35,7 +35,9 @@ export default async function CustomerServiceDetailPage({
                 className="rounded-xl bg-surface-container-lowest border border-outline-variant p-3 flex items-center justify-between"
               >
                 <span className="text-body-md text-foreground">{rd.document_types?.name}</span>
-                {rd.is_mandatory ? (
+                {rd.condition_key ? (
+                  <span className="text-label-sm text-on-surface-variant">Required in some cases</span>
+                ) : rd.is_mandatory ? (
                   <span className="text-label-sm text-error">Required</span>
                 ) : (
                   <span className="text-label-sm text-on-surface-variant">Optional</span>

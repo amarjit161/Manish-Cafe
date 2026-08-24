@@ -76,6 +76,23 @@ export default {
       return jsonResponse({ ok: true }, 200);
     }
 
+    if (url.pathname === "/object" && request.method === "GET") {
+      const object = await env.DOCUMENTS.get(objectKey);
+      if (!object) {
+        return jsonResponse({ ok: false, error: "not_found" }, 404);
+      }
+
+      const headers = new Headers();
+      object.writeHttpMetadata(headers);
+      headers.set("content-length", String(object.size));
+      // No cache-control beyond "private" -- these are short-lived,
+      // per-request fetches proxied through Next.js, never cached at a
+      // shared/public layer.
+      headers.set("cache-control", "private, no-store");
+
+      return new Response(object.body, { status: 200, headers });
+    }
+
     return jsonResponse({ ok: false, error: "not_found" }, 404);
   },
 } satisfies ExportedHandler<Env>;

@@ -22,8 +22,10 @@ export default async function AdminApplicationsPage() {
                 <th className="px-4 py-3">Customer</th>
                 <th className="px-4 py-3">Service</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Documents</th>
                 <th className="px-4 py-3">Amount</th>
                 <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3">Updated</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -36,8 +38,12 @@ export default async function AdminApplicationsPage() {
                   <td className="px-4 py-3">
                     <StatusBadge status={app.status} />
                   </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {app.documentCounts.approved}/{app.documentCounts.total} documents
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap">₹{app.customer_price_snapshot}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.created_at)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.updated_at)}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <Link href={`/admin/dashboard/applications/${app.id}`} className="text-label-sm text-primary underline">
                       View

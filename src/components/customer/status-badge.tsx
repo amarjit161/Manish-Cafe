@@ -33,3 +33,35 @@ export function StatusBadge({ status }: { status: ApplicationStatus }) {
     </span>
   );
 }
+
+type DocumentStatus = Database["public"]["Enums"]["document_status"];
+
+const DOCUMENT_STATUS_STYLES: Record<DocumentStatus, string> = {
+  uploaded: "bg-secondary-container text-on-secondary-container",
+  under_review: "bg-secondary-container text-on-secondary-container",
+  approved: "bg-tertiary text-on-tertiary",
+  verified: "bg-tertiary text-on-tertiary",
+  rejected: "bg-error-container text-on-error-container",
+  reupload_required: "bg-error-container text-on-error-container",
+  deleted: "bg-surface-container-high text-on-surface-variant",
+};
+
+const DOCUMENT_STATUS_LABELS: Record<DocumentStatus, string> = {
+  uploaded: "Uploaded",
+  under_review: "Under review",
+  approved: "Approved",
+  verified: "Verified",
+  rejected: "Rejected",
+  reupload_required: "Re-upload required",
+  deleted: "Deleted",
+};
+
+export function DocumentStatusBadge({ status }: { status: DocumentStatus }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-label-sm font-medium whitespace-nowrap ${DOCUMENT_STATUS_STYLES[status]}`}
+    >
+      {DOCUMENT_STATUS_LABELS[status]}
+    </span>
+  );
+}

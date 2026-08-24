@@ -39,7 +39,9 @@ export async function getServiceWithDocuments(serviceId: string) {
 
   const { data: requiredDocs } = await supabase
     .from("service_document_types")
-    .select("id, is_mandatory, display_order, document_type_id, document_types(id, code, name, description)")
+    .select(
+      "id, is_mandatory, condition_key, display_order, document_type_id, document_types(id, code, name, description)",
+    )
     .eq("service_id", serviceId)
     .order("display_order");
 
@@ -79,16 +81,18 @@ export async function getApplicationDetail(applicationId: string) {
 
   const { data: application, error } = await supabase
     .from("applications")
-    .select("*, services(id, name, description, category)")
+    .select("*, services(id, name, description, category, slug)")
     .eq("id", applicationId)
     .maybeSingle();
   if (error) throw error;
   if (!application) return null;
 
-  const [{ data: requiredDocs }, { data: documents }, { data: history }] = await Promise.all([
+  const [{ data: requiredDocs }, { data: documents }, { data: history }, { data: messages }] = await Promise.all([
     supabase
       .from("service_document_types")
-      .select("id, is_mandatory, display_order, document_type_id, document_types(id, code, name, description)")
+      .select(
+        "id, is_mandatory, condition_key, display_order, document_type_id, document_types(id, code, name, description)",
+      )
       .eq("service_id", application.service_id)
       .order("display_order"),
     supabase
@@ -101,6 +105,16 @@ export async function getApplicationDetail(applicationId: string) {
       .select("*")
       .eq("application_id", applicationId)
       .order("created_at", { ascending: true }),
+    // application_messages_select scopes this to the caller's own
+    // application (or their retailer's) -- never returns rows for someone
+    // else's application, and application_internal_notes is intentionally
+    // NOT queried here at all: there is no policy granting customers any
+    // access to it, so it isn't just hidden in the UI, it's unreadable.
+    supabase
+      .from("application_messages")
+      .select("*")
+      .eq("application_id", applicationId)
+      .order("created_at", { ascending: true }),
   ]);
 
   return {
@@ -108,5 +122,6 @@ export async function getApplicationDetail(applicationId: string) {
     requiredDocs: requiredDocs ?? [],
     documents: documents ?? [],
     history: history ?? [],
+    messages: messages ?? [],
   };
 }
