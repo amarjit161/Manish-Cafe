@@ -3,16 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateApplicationAnswers } from "@/lib/customer/actions";
-
-const FIELDS = [
-  { key: "name", label: "Name" },
-  { key: "dob", label: "Date of Birth" },
-  { key: "gender", label: "Gender" },
-  { key: "address", label: "Address" },
-  { key: "mobile", label: "Mobile Number" },
-  { key: "email", label: "Email" },
-  { key: "other", label: "Other" },
-];
+import { AADHAAR_UPDATE_FIELDS } from "@/lib/applications/aadhaar-fields";
 
 /**
  * Persists into applications.answers ({ update_fields, other_text }), the
@@ -67,7 +58,7 @@ export function AadhaarUpdateFieldsForm({
     <div className="space-y-3 rounded-2xl bg-surface-container-low p-4">
       <p className="text-label-lg text-foreground">What do you want to update?</p>
       <div className="space-y-2">
-        {FIELDS.map((f) => (
+        {AADHAAR_UPDATE_FIELDS.map((f) => (
           <label key={f.key} className="flex items-center gap-2 text-body-md text-foreground">
             <input
               type="checkbox"
@@ -83,9 +74,12 @@ export function AadhaarUpdateFieldsForm({
 
       {selected.includes("other") ? (
         <div className="space-y-1 pl-6">
-          <label className="text-label-sm text-on-surface-variant">Please specify:</label>
+          <label className="text-label-sm text-on-surface-variant">
+            Please specify <span className="text-error">*</span>
+          </label>
           <input
             type="text"
+            required
             value={otherText}
             disabled={disabled || isPending}
             onChange={(e) => setOtherText(e.target.value)}
@@ -93,6 +87,9 @@ export function AadhaarUpdateFieldsForm({
             placeholder="What else do you want to update?"
             className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground disabled:opacity-60"
           />
+          {!disabled && !otherText.trim() ? (
+            <p className="text-label-sm text-error">Required before you can submit your application.</p>
+          ) : null}
         </div>
       ) : null}
 

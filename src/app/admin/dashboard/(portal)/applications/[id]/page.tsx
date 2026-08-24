@@ -9,6 +9,7 @@ import { groupDocumentsByType } from "@/lib/applications/documents";
 import { buildApplicationTimeline } from "@/lib/applications/timeline";
 import { getApplicationProgress } from "@/lib/applications/progress";
 import { isDocumentRequired } from "@/lib/applications/requirements";
+import { formatRequestedUpdates } from "@/lib/applications/aadhaar-fields";
 import { formatDate } from "@/lib/format";
 
 export default async function AdminApplicationDetailPage({
@@ -25,6 +26,7 @@ export default async function AdminApplicationDetailPage({
   const grouped = groupDocumentsByType(documents);
 
   const answers = (application.answers ?? {}) as Record<string, unknown>;
+  const requestedUpdates = formatRequestedUpdates(answers);
   const progress = getApplicationProgress({
     applicationStatus: application.status,
     currentRequiredDocuments: requiredDocs
@@ -71,6 +73,13 @@ export default async function AdminApplicationDetailPage({
         ) : null}
       </div>
 
+      {requestedUpdates.length > 0 ? (
+        <div className="rounded-2xl bg-surface-container-low p-4">
+          <p className="text-label-lg text-foreground">Requested updates</p>
+          <p className="text-body-md text-foreground mt-1">{requestedUpdates.join(", ")}</p>
+        </div>
+      ) : null}
+
       <section className="space-y-2">
         <h2 className="text-label-lg text-foreground">Documents</h2>
         {grouped.size === 0 ? (
@@ -79,11 +88,12 @@ export default async function AdminApplicationDetailPage({
           <div className="space-y-3">
             {[...grouped.values()].map(({ current, history: olderVersions }) => (
               <div key={current.id} className="space-y-1.5">
+                <p className="text-label-sm font-semibold text-primary uppercase tracking-wide">Current version</p>
                 <AdminDocumentCard document={current} applicationId={application.id} />
                 {olderVersions.length > 0 ? (
                   <details className="pl-2">
-                    <summary className="cursor-pointer text-label-sm text-on-surface-variant">
-                      {olderVersions.length} previous version{olderVersions.length > 1 ? "s" : ""}
+                    <summary className="cursor-pointer text-label-sm font-medium text-on-surface-variant">
+                      Previous versions ({olderVersions.length}) — read only, kept for audit history
                     </summary>
                     <div className="mt-1.5 space-y-1.5">
                       {olderVersions.map((doc) => (

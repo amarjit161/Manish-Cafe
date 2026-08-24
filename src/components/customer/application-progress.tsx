@@ -56,7 +56,7 @@ export function ApplicationProgressView({ progress }: { progress: ApplicationPro
  * immediately without scrolling to find the matching document card. This
  * is the first thing a customer should see, not something they discover by
  * reading a timeline. When nothing needs attention, this renders nothing
- * (the calm state is communicated by ApplicationProgressView instead).
+ * (the calm state is communicated by NoActionRequiredBanner instead).
  */
 export function ActionRequiredBanner({
   applicationId,
@@ -79,7 +79,7 @@ export function ActionRequiredBanner({
           </p>
           {item.reason ? (
             <p className="text-body-md text-foreground">
-              <span className="font-medium">Reason:</span> {item.reason}
+              <span className="font-medium">Reason from Manish Cafe:</span> &ldquo;{item.reason}&rdquo;
             </p>
           ) : null}
           {canUpload ? (
@@ -92,9 +92,9 @@ export function ActionRequiredBanner({
 }
 
 const CALM_STAGE_COPY: Partial<Record<ApplicationProgress["stage"], string>> = {
-  submitted: "Your documents are currently being reviewed.",
-  under_review: "Your documents are currently being reviewed.",
-  processing: "Your application is being processed.",
+  submitted: "Your application is currently being reviewed by Manish Cafe.",
+  under_review: "Your application is currently being reviewed by Manish Cafe.",
+  processing: "Your application is being processed by Manish Cafe.",
 };
 
 /**

@@ -100,6 +100,13 @@ export async function submitApplication(
   ]);
 
   const answers = (application.answers ?? {}) as Record<string, unknown>;
+
+  const updateFields = Array.isArray(answers.update_fields) ? (answers.update_fields as unknown[]) : [];
+  const otherText = typeof answers.other_text === "string" ? answers.other_text.trim() : "";
+  if (updateFields.includes("other") && !otherText) {
+    return { error: "Please specify what else you'd like to update, or unselect \"Other\"." };
+  }
+
   const requiredDocs = (requirements ?? []).filter((r) =>
     isDocumentRequired(r.condition_key, r.is_mandatory, answers),
   );

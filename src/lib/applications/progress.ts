@@ -37,14 +37,13 @@ export type ApplicationProgress = {
   actionRequired: ActionRequiredItem[];
 };
 
-const IN_REVIEW_STATUSES = new Set(["submitted", "under_review", "documents_required"]);
 const TERMINAL_STATUSES = new Set(["completed", "rejected", "cancelled"]);
 
 export const STAGE_LABELS: Record<ApplicationStage, string> = {
   draft: "Draft",
   documents_required: "Action required",
   submitted: "Submitted",
-  under_review: "Documents under review",
+  under_review: "Under review",
   processing: "Processing",
   completed: "Completed",
   rejected: "Application rejected",
@@ -69,6 +68,14 @@ export const STAGE_TONES: Record<ApplicationStage, "success" | "warning" | "info
  * This is the ONLY place that decides "does the customer need to do
  * something right now" -- every UI surface calls this instead of
  * re-deriving its own answer from raw enum values.
+ *
+ * The stepper intentionally has exactly four stages -- Submitted /
+ * Documents verified / Processing / Completed -- because submission is
+ * already gated on every required document being uploaded (see
+ * submitApplication), so a separate "documents submitted" step would
+ * always flip to done in lockstep with "application submitted" and add
+ * nothing. The specific document that needs attention is surfaced by
+ * ActionRequiredBanner, not by inventing a fifth step here.
  */
 export function getApplicationProgress(params: {
   applicationStatus: string;
@@ -102,28 +109,13 @@ export function getApplicationProgress(params: {
 
   const submitted = applicationStatus !== "draft";
   const isProcessing = stage === "processing";
-  const isInReview = IN_REVIEW_STATUSES.has(applicationStatus) && actionRequired.length === 0;
 
   const steps: ProgressStep[] = [
     { label: "Application submitted", state: submitted ? "done" : "current" },
-    { label: "Documents submitted", state: submitted ? "done" : "upcoming" },
+    { label: "Documents verified", state: isProcessing ? "done" : submitted ? "current" : "upcoming" },
+    { label: "Application processing", state: isProcessing ? "current" : "upcoming" },
+    { label: "Completed", state: "upcoming" },
   ];
-
-  if (stage === "documents_required") {
-    steps.push({ label: "Action required", state: "current" });
-    steps.push({ label: "Documents approved", state: "upcoming" });
-  } else if (isProcessing) {
-    steps.push({ label: "Documents approved", state: "done" });
-  } else if (isInReview) {
-    steps.push({ label: "Documents under review", state: "current" });
-    steps.push({ label: "Documents approved", state: "upcoming" });
-  } else {
-    steps.push({ label: "Documents under review", state: "upcoming" });
-    steps.push({ label: "Documents approved", state: "upcoming" });
-  }
-
-  steps.push({ label: "Processing", state: isProcessing ? "current" : "upcoming" });
-  steps.push({ label: "Completed", state: "upcoming" });
 
   return { stage, terminal: null, steps, actionRequired };
 }

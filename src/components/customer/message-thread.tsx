@@ -1,17 +1,24 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { sendCustomerMessage, type ActionState } from "@/lib/customer/actions";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { formatDate } from "@/lib/format";
 
 type Message = { id: string; message: string; sender_role: string; created_at: string };
 
+/**
+ * When there's no conversation yet, this collapses to a single subtle
+ * prompt instead of a permanently-visible empty "Messages" section with a
+ * blank textarea -- the compose box only appears once the customer
+ * actually wants to start one, or once a conversation already exists.
+ */
 export function CustomerMessageThread({ applicationId, messages }: { applicationId: string; messages: Message[] }) {
   const [state, formAction] = useActionState<ActionState, FormData>(
     sendCustomerMessage.bind(null, applicationId),
     undefined,
   );
+  const [composeOpen, setComposeOpen] = useState(messages.length > 0);
 
   // "New" is derived, not stored: an admin message counts as new to the
   // customer if it arrived after the customer's own last reply (or if the
@@ -23,6 +30,21 @@ export function CustomerMessageThread({ applicationId, messages }: { application
     .find((m) => m.sender_role === "customer")?.created_at;
   const isNew = (m: Message) =>
     m.sender_role !== "customer" && (!lastCustomerMessageAt || m.created_at > lastCustomerMessageAt);
+
+  if (messages.length === 0 && !composeOpen) {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-container-lowest border border-outline-variant p-3">
+        <p className="text-body-md text-on-surface-variant">Need help with your application?</p>
+        <button
+          type="button"
+          onClick={() => setComposeOpen(true)}
+          className="rounded-lg bg-primary text-on-primary px-3 py-1.5 text-label-sm font-medium whitespace-nowrap"
+        >
+          Message Manish Cafe
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">

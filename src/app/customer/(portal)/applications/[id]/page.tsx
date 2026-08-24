@@ -109,9 +109,7 @@ export default async function CustomerApplicationDetailPage({
       </section>
 
       <section className="space-y-2">
-        <h2 className={messages.length > 0 ? "text-label-lg text-foreground" : "text-label-sm text-on-surface-variant"}>
-          {messages.length > 0 ? "Messages" : "Have a question? Message the Manish Cafe team"}
-        </h2>
+        {messages.length > 0 ? <h2 className="text-label-lg text-foreground">Messages</h2> : null}
         <CustomerMessageThread applicationId={application.id} messages={messages} />
       </section>
 

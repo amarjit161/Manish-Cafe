@@ -43,7 +43,7 @@ export function AdminDocumentCard({ document, applicationId }: { document: Docum
       ) : null}
       {document.status === "reupload_required" && document.reupload_message ? (
         <p className="rounded-lg bg-error-container/40 px-3 py-2 text-label-sm text-error">
-          Re-upload requested: {document.reupload_message}
+          Message: {document.reupload_message}
         </p>
       ) : null}
 
