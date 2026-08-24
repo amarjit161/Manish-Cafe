@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { getCurrentUserProfile } from "@/lib/auth/session";
+import { getAdminDashboardStats } from "@/lib/admin/queries";
+import { StatCard } from "@/components/customer/stat-card";
 
 export default async function AdminSaasDashboardPage() {
-  const profile = await getCurrentUserProfile();
+  const [profile, stats] = await Promise.all([getCurrentUserProfile(), getAdminDashboardStats()]);
 
   return (
     <div className="space-y-6">
@@ -14,17 +17,25 @@ export default async function AdminSaasDashboardPage() {
       </p>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {["Applications", "Customers", "Pending payments", "Open tickets"].map((label) => (
-          <div key={label} className="rounded-xl bg-surface-container-lowest border border-outline-variant p-4">
-            <p className="text-label-sm text-on-surface-variant">{label}</p>
-            <p className="text-headline-md text-foreground mt-1">—</p>
-          </div>
-        ))}
+        <StatCard label="Applications" value={stats.applicationsCount} />
+        <StatCard label="Customers" value={stats.customersCount} />
+        <StatCard label="Pending payments" value={stats.pendingPayments ?? "Not implemented"} />
+        <StatCard label="Open tickets" value={stats.openTickets ?? "Not implemented"} />
+      </div>
+
+      <div className="flex items-center justify-between rounded-xl bg-surface-container-lowest border border-outline-variant p-4">
+        <div>
+          <p className="text-body-md text-foreground font-medium">Applications</p>
+          <p className="text-label-sm text-on-surface-variant">Browse and inspect customer applications.</p>
+        </div>
+        <Link href="/admin/dashboard/applications" className="text-label-sm text-primary underline whitespace-nowrap">
+          View all
+        </Link>
       </div>
 
       <div className="rounded-xl border border-dashed border-outline-variant p-6 text-center text-on-surface-variant text-body-md">
-        Users, services, applications, documents, payments, wallets, invoices, reports and audit logs are
-        coming in upcoming updates.
+        Users, services, documents, payments, wallets, invoices, reports and audit logs are coming in
+        upcoming updates.
       </div>
     </div>
   );

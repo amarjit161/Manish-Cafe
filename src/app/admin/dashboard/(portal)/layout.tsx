@@ -3,7 +3,10 @@ import { SITE_NAME } from "@/lib/site-data";
 import { requirePortalSession } from "@/lib/auth/session";
 import { signOutAndRedirect } from "@/lib/auth/actions";
 
-const BUSINESS_ADMIN_NAV = [{ href: "/admin/dashboard", label: "Dashboard", icon: "space_dashboard" }] as const;
+const BUSINESS_ADMIN_NAV = [
+  { href: "/admin/dashboard", label: "Dashboard", icon: "space_dashboard" },
+  { href: "/admin/dashboard/applications", label: "Applications", icon: "assignment" },
+] as const;
 
 export default async function AdminSaasPortalLayout({ children }: { children: React.ReactNode }) {
   await requirePortalSession("admin", "/admin/dashboard/login");
