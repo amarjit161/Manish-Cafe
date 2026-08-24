@@ -70,7 +70,7 @@ export function DocumentStatusBadge({ status }: { status: DocumentStatus }) {
 const STAGE_TONE_STYLES: Record<(typeof STAGE_TONES)[ApplicationStage], string> = {
   success: "bg-tertiary text-on-tertiary",
   warning: "bg-error-container text-on-error-container",
-  info: "bg-secondary-container text-on-secondary-container",
+  info: "bg-primary-container text-on-primary-container",
   neutral: "bg-surface-container-high text-on-surface-variant",
   error: "bg-error-container text-on-error-container",
 };

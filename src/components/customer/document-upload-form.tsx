@@ -3,14 +3,23 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+const VARIANT_CLASSES: Record<"primary" | "secondary", string> = {
+  primary: "bg-primary text-on-primary",
+  secondary: "border border-outline-variant bg-surface-container-lowest text-primary",
+};
+
 export function DocumentUploadForm({
   applicationId,
   documentTypeId,
-  label = "Upload",
+  label = "Choose file",
+  variant = "primary",
+  fullWidth = false,
 }: {
   applicationId: string;
   documentTypeId: string;
   label?: string;
+  variant?: "primary" | "secondary";
+  fullWidth?: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -36,12 +45,12 @@ export function DocumentUploadForm({
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
-          setError(body.error ?? "Upload failed. Please try again.");
+          setError(body.error ?? "We couldn't upload your document. Please try again.");
           return;
         }
         router.refresh();
       } catch {
-        setError("Upload failed. Please check your connection and try again.");
+        setError("We couldn't upload your document. Please check your connection and try again.");
       }
     });
   }
@@ -49,9 +58,9 @@ export function DocumentUploadForm({
   return (
     <div className="space-y-1">
       <label
-        className={`inline-flex items-center gap-2 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-1.5 text-label-sm text-primary ${
-          isPending ? "opacity-60" : "cursor-pointer hover:bg-surface-container-low"
-        }`}
+        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-label-lg font-medium ${
+          fullWidth ? "w-full" : ""
+        } ${VARIANT_CLASSES[variant]} ${isPending ? "opacity-60" : "cursor-pointer"}`}
       >
         {isPending ? "Uploading…" : label}
         <input

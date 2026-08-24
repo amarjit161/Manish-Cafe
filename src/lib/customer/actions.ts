@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMyCustomer } from "@/lib/customer/queries";
 import { isDocumentRequired } from "@/lib/applications/requirements";
+import { deriveAnswerFlags, type MobileRegisteredAnswer } from "@/lib/applications/aadhaar-fields";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -23,7 +24,7 @@ export async function createApplication(
 ): Promise<ActionState> {
   const customer = await getMyCustomer();
   if (!customer) {
-    return { error: "Your customer profile could not be found." };
+    return { error: "We couldn't find your customer profile. Please try again." };
   }
 
   const supabase = await createClient();
@@ -36,7 +37,7 @@ export async function createApplication(
     .maybeSingle();
 
   if (serviceError || !service) {
-    return { error: "That service is not available." };
+    return { error: "This service isn't available right now." };
   }
 
   const { data: application, error } = await supabase
@@ -52,7 +53,7 @@ export async function createApplication(
     .single();
 
   if (error || !application) {
-    return { error: "Could not create the application. Please try again." };
+    return { error: "We couldn't start your application. Please try again." };
   }
 
   redirect(`/customer/applications/${application.id}`);
@@ -64,13 +65,15 @@ const NON_CURRENT_DOCUMENT_STATUSES = ["rejected", "reupload_required", "deleted
  * The only path that ever changes an application's status (enforced by
  * the prevent_direct_status_change DB trigger). change_application_status()
  * independently verifies the caller owns this application before doing
- * anything, and only allows a customer to move draft -> submitted.
+ * anything, only allows a customer to move draft -> submitted, and
+ * computes/snapshots the final price itself from the service's configured
+ * extra charges -- this action never sends a price, only a status change.
  *
  * Before calling it, this also enforces (server-side, not just in the UI)
  * that every currently-required document -- given the application's
  * answers, e.g. the Aadhaar "what do you want to update" selection -- has
- * a live upload. A customer cannot bypass this by hiding a form field or
- * calling the action directly.
+ * a live upload, and that "Other" has real text if selected. A customer
+ * cannot bypass this by hiding a form field or calling the action directly.
  */
 export async function submitApplication(
   applicationId: string,
@@ -85,7 +88,15 @@ export async function submitApplication(
     .eq("id", applicationId)
     .maybeSingle();
   if (!application) {
-    return { error: "Application not found." };
+    return { error: "We couldn't find that application." };
+  }
+
+  const answers = (application.answers ?? {}) as Record<string, unknown>;
+
+  const updateFields = Array.isArray(answers.update_fields) ? (answers.update_fields as unknown[]) : [];
+  const otherText = typeof answers.other_text === "string" ? answers.other_text.trim() : "";
+  if (updateFields.includes("other") && !otherText) {
+    return { error: "Please tell us what else you'd like to update, or unselect \"Other\"." };
   }
 
   const [{ data: requirements }, { data: documents }] = await Promise.all([
@@ -98,14 +109,6 @@ export async function submitApplication(
       .select("document_type_id, status, uploaded_at")
       .eq("application_id", applicationId),
   ]);
-
-  const answers = (application.answers ?? {}) as Record<string, unknown>;
-
-  const updateFields = Array.isArray(answers.update_fields) ? (answers.update_fields as unknown[]) : [];
-  const otherText = typeof answers.other_text === "string" ? answers.other_text.trim() : "";
-  if (updateFields.includes("other") && !otherText) {
-    return { error: "Please specify what else you'd like to update, or unselect \"Other\"." };
-  }
 
   const requiredDocs = (requirements ?? []).filter((r) =>
     isDocumentRequired(r.condition_key, r.is_mandatory, answers),
@@ -137,34 +140,41 @@ export async function submitApplication(
   });
 
   if (error) {
-    return { error: "Could not submit the application. Please try again." };
+    return { error: "We couldn't submit your application. Please try again." };
   }
 
   revalidatePath(`/customer/applications/${applicationId}`);
 }
 
 /**
- * Persists service-specific question answers (e.g. Aadhaar's "what do you
- * want to update") into the generic applications.answers jsonb column.
- * Ownership is enforced by RLS (applications_update is customer-scoped to
- * their own draft applications via prevent_customer_application_tamper +
- * the underlying applications_update policy), not by this function.
+ * Persists service-specific question answers (Aadhaar's "what do you want
+ * to update" + the mobile-number sub-question) into the generic
+ * applications.answers jsonb column. `flags` is derived here from
+ * mobile_registered via the one shared mapping (deriveAnswerFlags) that
+ * both the live customer-facing price preview and the server-side price
+ * snapshot read -- never computed differently in two places. Ownership is
+ * enforced by RLS (applications_update, customer-scoped to their own
+ * application), not by this function.
  */
 export async function updateApplicationAnswers(
   applicationId: string,
-  updateFields: string[],
-  otherText?: string,
+  params: { updateFields: string[]; otherText?: string; mobileRegistered?: MobileRegisteredAnswer },
 ): Promise<ActionState> {
   const supabase = await createClient();
-  const answers: Record<string, string[] | string> = { update_fields: updateFields };
-  if (updateFields.includes("other") && otherText?.trim()) {
-    answers.other_text = otherText.trim();
+
+  const answers: Record<string, string | string[]> = { update_fields: params.updateFields };
+  if (params.updateFields.includes("other") && params.otherText?.trim()) {
+    answers.other_text = params.otherText.trim();
+  }
+  if (params.updateFields.includes("mobile") && params.mobileRegistered) {
+    answers.mobile_registered = params.mobileRegistered;
+    answers.flags = deriveAnswerFlags({ mobile_registered: params.mobileRegistered });
   }
 
   const { error } = await supabase.from("applications").update({ answers }).eq("id", applicationId);
 
   if (error) {
-    return { error: "Could not save your answers. Please try again." };
+    return { error: "We couldn't save your answers. Please try again." };
   }
 
   revalidatePath(`/customer/applications/${applicationId}`);
@@ -176,13 +186,13 @@ export async function sendCustomerMessage(
   formData: FormData,
 ): Promise<ActionState> {
   const message = String(formData.get("message") ?? "").trim();
-  if (!message) return { error: "Message cannot be empty." };
+  if (!message) return { error: "Please write a message before sending." };
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Unauthorized." };
+  if (!user) return { error: "You don't have access to this application." };
 
   const { error } = await supabase.from("application_messages").insert({
     application_id: applicationId,
@@ -191,6 +201,6 @@ export async function sendCustomerMessage(
     message,
   });
 
-  if (error) return { error: "Could not send the message." };
+  if (error) return { error: "We couldn't send your message. Please try again." };
   revalidatePath(`/customer/applications/${applicationId}`);
 }

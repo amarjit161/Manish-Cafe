@@ -39,15 +39,16 @@ export type ApplicationProgress = {
 
 const TERMINAL_STATUSES = new Set(["completed", "rejected", "cancelled"]);
 
+/** Plain-language status text -- never a raw database enum value. */
 export const STAGE_LABELS: Record<ApplicationStage, string> = {
-  draft: "Draft",
+  draft: "Continue application",
   documents_required: "Action required",
-  submitted: "Submitted",
-  under_review: "Under review",
-  processing: "Processing",
+  submitted: "Application submitted",
+  under_review: "We're reviewing your application",
+  processing: "We're processing your application",
   completed: "Completed",
   rejected: "Application rejected",
-  cancelled: "Application cancelled",
+  cancelled: "Cancelled",
 };
 
 export const STAGE_TONES: Record<ApplicationStage, "success" | "warning" | "info" | "neutral" | "error"> = {
@@ -69,13 +70,14 @@ export const STAGE_TONES: Record<ApplicationStage, "success" | "warning" | "info
  * something right now" -- every UI surface calls this instead of
  * re-deriving its own answer from raw enum values.
  *
- * The stepper intentionally has exactly four stages -- Submitted /
- * Documents verified / Processing / Completed -- because submission is
- * already gated on every required document being uploaded (see
- * submitApplication), so a separate "documents submitted" step would
- * always flip to done in lockstep with "application submitted" and add
- * nothing. The specific document that needs attention is surfaced by
- * ActionRequiredBanner, not by inventing a fifth step here.
+ * The stepper has four stages -- Application / Documents / Review /
+ * Completed -- where the fourth slot's label reads "Processing" while
+ * that stage is actually in progress and "Completed" once it's done, so
+ * there is never a fifth row on screen. "Documents" is kept distinct from
+ * "Application" (even though they usually become done together) because,
+ * unlike a one-shot submission, a document can cycle back into needing
+ * the customer's attention after submission -- that's a real, separate
+ * lifecycle worth its own row, not a redundant one.
  */
 export function getApplicationProgress(params: {
   applicationStatus: string;
@@ -106,15 +108,24 @@ export function getApplicationProgress(params: {
   }
 
   const stage: ApplicationStage = actionRequired.length > 0 ? "documents_required" : (applicationStatus as ApplicationStage);
-
-  const submitted = applicationStatus !== "draft";
   const isProcessing = stage === "processing";
+  const isDraft = stage === "draft";
+  const needsAttention = stage === "documents_required";
 
   const steps: ProgressStep[] = [
-    { label: "Application submitted", state: submitted ? "done" : "current" },
-    { label: "Documents verified", state: isProcessing ? "done" : submitted ? "current" : "upcoming" },
-    { label: "Application processing", state: isProcessing ? "current" : "upcoming" },
-    { label: "Completed", state: "upcoming" },
+    { label: "Application", state: isDraft ? "current" : "done" },
+    {
+      label: "Documents",
+      state: isDraft ? "upcoming" : needsAttention ? "current" : "done",
+    },
+    {
+      label: "Review",
+      state: isDraft || needsAttention ? "upcoming" : isProcessing ? "done" : "current",
+    },
+    {
+      label: isProcessing ? "Processing" : "Completed",
+      state: isProcessing ? "current" : "upcoming",
+    },
   ];
 
   return { stage, terminal: null, steps, actionRequired };

@@ -119,3 +119,16 @@ body {
 .material-symbols-outlined.fill {
   font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
 }
+
+/* Visible keyboard focus everywhere -- :focus-visible only fires for
+   keyboard/assistive-tech focus, never a plain mouse click, so this never
+   adds a ring around a button someone just tapped. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

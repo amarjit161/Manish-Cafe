@@ -3,36 +3,53 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateApplicationAnswers } from "@/lib/customer/actions";
-import { AADHAAR_UPDATE_FIELDS } from "@/lib/applications/aadhaar-fields";
+import { AADHAAR_UPDATE_FIELDS, MOBILE_REGISTERED_OPTIONS, type MobileRegisteredAnswer } from "@/lib/applications/aadhaar-fields";
+
+type ExtraCharge = { condition_key: string; label: string; amount: number };
+
+const FLAG_BY_MOBILE_ANSWER: Partial<Record<MobileRegisteredAnswer, string>> = {
+  no: "mobile_not_registered",
+  registered_other: "mobile_registered_other",
+};
 
 /**
- * Persists into applications.answers ({ update_fields, other_text }), the
- * same generic column isDocumentRequired() reads to decide whether
- * address_proof (or any other conditionally-required document) currently
- * applies. Selecting "Address" here is what turns Address Proof from
- * optional to required -- nothing about this is Aadhaar-specific in the
- * requirements engine itself, only this form's field list is.
+ * Persists into applications.answers ({ update_fields, other_text,
+ * mobile_registered, flags }), the same generic column isDocumentRequired()
+ * and computePriceBreakdown() read. Selecting "Address" is what turns
+ * Address Proof from optional to required; the mobile-number answer is
+ * what can add a configured extra charge -- nothing about this is
+ * Aadhaar-specific in the requirements/pricing engines, only this form's
+ * field list is.
  */
 export function AadhaarUpdateFieldsForm({
   applicationId,
   initialFields,
   initialOtherText,
+  initialMobileRegistered,
+  extraCharges,
   disabled,
 }: {
   applicationId: string;
   initialFields: string[];
   initialOtherText: string;
+  initialMobileRegistered: MobileRegisteredAnswer | null;
+  extraCharges: ExtraCharge[];
   disabled: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>(initialFields);
   const [otherText, setOtherText] = useState(initialOtherText);
+  const [mobileRegistered, setMobileRegistered] = useState<MobileRegisteredAnswer | null>(initialMobileRegistered);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function save(nextSelected: string[], nextOtherText: string) {
+  function save(next: { updateFields: string[]; otherText: string; mobileRegistered: MobileRegisteredAnswer | null }) {
     startTransition(async () => {
-      const result = await updateApplicationAnswers(applicationId, nextSelected, nextOtherText);
+      const result = await updateApplicationAnswers(applicationId, {
+        updateFields: next.updateFields,
+        otherText: next.otherText,
+        mobileRegistered: next.mobileRegistered ?? undefined,
+      });
       if (result?.error) {
         setError(result.error);
       } else {
@@ -46,34 +63,51 @@ export function AadhaarUpdateFieldsForm({
     if (disabled || isPending) return;
     const next = selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key];
     setSelected(next);
-    save(next, otherText);
+    save({ updateFields: next, otherText, mobileRegistered });
   }
 
   function commitOtherText() {
     if (disabled || isPending) return;
-    save(selected, otherText);
+    save({ updateFields: selected, otherText, mobileRegistered });
+  }
+
+  function chooseMobileRegistered(value: MobileRegisteredAnswer) {
+    if (disabled || isPending) return;
+    setMobileRegistered(value);
+    save({ updateFields: selected, otherText, mobileRegistered: value });
+  }
+
+  function chargeFor(value: MobileRegisteredAnswer): ExtraCharge | undefined {
+    const flag = FLAG_BY_MOBILE_ANSWER[value];
+    if (!flag) return undefined;
+    return extraCharges.find((c) => c.condition_key === flag);
   }
 
   return (
-    <div className="space-y-3 rounded-2xl bg-surface-container-low p-4">
-      <p className="text-label-lg text-foreground">What do you want to update?</p>
-      <div className="space-y-2">
-        {AADHAAR_UPDATE_FIELDS.map((f) => (
-          <label key={f.key} className="flex items-center gap-2 text-body-md text-foreground">
-            <input
-              type="checkbox"
-              checked={selected.includes(f.key)}
-              disabled={disabled || isPending}
-              onChange={() => toggle(f.key)}
-              className="h-4 w-4 rounded border-outline-variant accent-primary disabled:opacity-60"
-            />
-            {f.label}
-          </label>
-        ))}
+    <div className="space-y-4 rounded-2xl bg-surface-container-low p-4">
+      <div className="space-y-3">
+        <p className="text-label-lg text-foreground">What would you like to update?</p>
+        <div className="space-y-1">
+          {AADHAAR_UPDATE_FIELDS.map((f) => (
+            <label
+              key={f.key}
+              className="flex min-h-11 items-center gap-3 rounded-lg px-1 py-1.5 text-body-md text-foreground"
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(f.key)}
+                disabled={disabled || isPending}
+                onChange={() => toggle(f.key)}
+                className="h-5 w-5 rounded border-outline-variant accent-primary disabled:opacity-60"
+              />
+              {f.label}
+            </label>
+          ))}
+        </div>
       </div>
 
       {selected.includes("other") ? (
-        <div className="space-y-1 pl-6">
+        <div className="space-y-1">
           <label className="text-label-sm text-on-surface-variant">
             Please specify <span className="text-error">*</span>
           </label>
@@ -85,11 +119,58 @@ export function AadhaarUpdateFieldsForm({
             onChange={(e) => setOtherText(e.target.value)}
             onBlur={commitOtherText}
             placeholder="What else do you want to update?"
-            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground disabled:opacity-60"
+            className="w-full min-h-11 rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground disabled:opacity-60"
           />
           {!disabled && !otherText.trim() ? (
             <p className="text-label-sm text-error">Required before you can submit your application.</p>
           ) : null}
+        </div>
+      ) : null}
+
+      {selected.includes("mobile") ? (
+        <div className="space-y-2 border-t border-outline-variant pt-3">
+          <p className="text-body-md font-medium text-foreground">
+            Is a mobile number already registered with your Aadhaar?
+          </p>
+          <div className="space-y-1">
+            {MOBILE_REGISTERED_OPTIONS.map((opt) => {
+              const charge = chargeFor(opt.value);
+              return (
+                <div key={opt.value}>
+                  <label className="flex min-h-11 items-center gap-3 rounded-lg px-1 py-1.5 text-body-md text-foreground">
+                    <input
+                      type="radio"
+                      name="mobile_registered"
+                      checked={mobileRegistered === opt.value}
+                      disabled={disabled || isPending}
+                      onChange={() => chooseMobileRegistered(opt.value)}
+                      className="h-5 w-5 border-outline-variant accent-primary disabled:opacity-60"
+                    />
+                    <span>{opt.label}</span>
+                    {charge ? (
+                      <span className="ml-auto text-label-sm text-on-surface-variant whitespace-nowrap">
+                        +₹{charge.amount}
+                      </span>
+                    ) : null}
+                  </label>
+                  {mobileRegistered === opt.value && opt.info ? (
+                    <div className="ml-8 mt-1 space-y-0.5 rounded-lg bg-surface-container-lowest p-2">
+                      {opt.info.map((line) => (
+                        <p key={line} className="text-label-sm text-on-surface-variant">
+                          {line}
+                        </p>
+                      ))}
+                      {charge ? (
+                        <p className="text-label-sm text-foreground font-medium">
+                          Additional charge: ₹{charge.amount} ({charge.label})
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : null}
 

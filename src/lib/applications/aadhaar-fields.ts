@@ -33,3 +33,45 @@ export function formatRequestedUpdates(answers: Record<string, unknown> | null |
       return key === "other" && otherText ? `${label} (${otherText})` : label;
     });
 }
+
+export type MobileRegisteredAnswer = "yes" | "no" | "unknown" | "registered_other";
+
+export const MOBILE_REGISTERED_OPTIONS: {
+  value: MobileRegisteredAnswer;
+  label: string;
+  info?: string[];
+}[] = [
+  { value: "yes", label: "Yes" },
+  {
+    value: "no",
+    label: "No",
+    info: [
+      "No mobile number is registered with your Aadhaar.",
+      "Additional assistance may be required to complete this service.",
+    ],
+  },
+  {
+    value: "unknown",
+    label: "I don't know",
+    info: ["That's okay. You don't need to know right now.", "We can help confirm what is required during processing."],
+  },
+  {
+    value: "registered_other",
+    label: "I know a number is registered, but it isn't my current number",
+    info: ["You may need to update the mobile number linked to your Aadhaar."],
+  },
+];
+
+/**
+ * The mapping from a specific answer VALUE to the generic "flags" array
+ * that both the client-side price preview (computePriceBreakdown) and the
+ * server-side price snapshot (change_application_status(), via the same
+ * flags array) read -- one small mapping, reused by both, so a flag never
+ * means something different in two places.
+ */
+export function deriveAnswerFlags(answers: { mobile_registered?: MobileRegisteredAnswer }): string[] {
+  const flags: string[] = [];
+  if (answers.mobile_registered === "no") flags.push("mobile_not_registered");
+  if (answers.mobile_registered === "registered_other") flags.push("mobile_registered_other");
+  return flags;
+}

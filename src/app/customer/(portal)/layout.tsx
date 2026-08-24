@@ -17,7 +17,7 @@ export default async function CustomerPortalLayout({ children }: { children: Rea
         </form>
       </header>
 
-      <main className="p-4 pb-24 max-w-2xl mx-auto">{children}</main>
+      <main className="p-4 pb-24 max-w-3xl mx-auto">{children}</main>
 
       <CustomerBottomNav />
     </div>

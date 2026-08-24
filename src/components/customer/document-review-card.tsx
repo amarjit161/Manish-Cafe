@@ -1,13 +1,11 @@
-import { DocumentStatusBadge } from "@/components/customer/status-badge";
 import { DocumentUploadForm } from "@/components/customer/document-upload-form";
 import { buildDocumentGuidance } from "@/lib/documents/guidance";
-import { formatDate } from "@/lib/format";
 import type { Database } from "@/lib/supabase/database.types";
 
 type DocumentRow = {
   id: string;
   status: Database["public"]["Enums"]["document_status"];
-  uploaded_at: string;
+  original_filename: string;
   rejection_reason: string | null;
   reupload_message: string | null;
 };
@@ -22,15 +20,15 @@ type DocumentTypeInfo = {
 
 const ACTION_NEEDED_STATUSES = new Set(["rejected", "reupload_required"]);
 const IN_REVIEW_STATUSES = new Set(["uploaded", "under_review"]);
+const APPROVED_STATUSES = new Set(["approved", "verified"]);
 
 /**
- * One document's full review state for the customer: what's required, why
- * (if anything is wrong), and the concrete replace action -- all in one
- * card so the customer never has to cross-reference the timeline to know
- * what to do next. The admin's exact rejection/re-upload wording is shown
- * verbatim (never paraphrased), and the "what to upload" checklist comes
- * entirely from document_types configuration (see buildDocumentGuidance),
- * not any hardcoded per-service copy.
+ * A document's full state for the customer, in plain language only --
+ * never document_status/application_status enum values. Deliberately does
+ * NOT reuse the admin's DocumentStatusBadge (that shows the real database
+ * status, which is exactly what a customer shouldn't have to interpret).
+ * "Approve"/"Reject"/"Request re-upload" never appear here; those are
+ * admin-only actions.
  */
 export function DocumentReviewCard({
   applicationId,
@@ -51,12 +49,14 @@ export function DocumentReviewCard({
     return (
       <div className="rounded-xl bg-surface-container-lowest border border-outline-variant p-4">
         <p className="text-body-lg font-medium text-foreground">{name}</p>
-        <p className="text-label-sm text-on-surface-variant">Not required based on your answers.</p>
+        <p className="text-label-sm text-on-surface-variant mt-0.5">Not required for your application.</p>
       </div>
     );
   }
 
   const needsAction = current ? ACTION_NEEDED_STATUSES.has(current.status) : false;
+  const isApproved = current ? APPROVED_STATUSES.has(current.status) : false;
+  const isInReview = current ? IN_REVIEW_STATUSES.has(current.status) : false;
   const reason = current?.status === "rejected" ? current.rejection_reason : current?.reupload_message;
 
   return (
@@ -65,51 +65,70 @@ export function DocumentReviewCard({
         needsAction ? "border-error bg-error-container/20" : "border-outline-variant bg-surface-container-lowest"
       }`}
     >
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-body-lg font-medium text-foreground">{name}</p>
-        {current ? <DocumentStatusBadge status={current.status} /> : null}
-      </div>
+      <p className="text-body-lg font-medium text-foreground">{name}</p>
 
       {!current ? (
         <>
-          <ul className="list-disc pl-5 text-label-sm text-on-surface-variant space-y-0.5">
-            {buildDocumentGuidance(documentType).map((line) => (
-              <li key={line}>{line}</li>
-            ))}
+          <p className="text-body-md text-on-surface-variant">
+            {documentType.description ?? `Upload your ${name.toLowerCase()}.`}
+          </p>
+          <ul className="text-label-sm text-on-surface-variant space-y-0.5">
+            {buildDocumentGuidance(documentType)
+              .slice(1)
+              .map((line) => (
+                <li key={line}>{line}</li>
+              ))}
           </ul>
           {canUpload ? (
-            <DocumentUploadForm applicationId={applicationId} documentTypeId={documentType.id} label="Upload" />
+            <DocumentUploadForm applicationId={applicationId} documentTypeId={documentType.id} label="Choose file" />
           ) : (
             <p className="text-label-sm text-error">Missing</p>
           )}
         </>
       ) : needsAction ? (
         <>
-          <p className="text-label-sm font-semibold text-error">❌ Action required</p>
+          <p className="text-label-sm font-semibold text-error">🔴 Action required</p>
           {reason ? (
-            <div className="space-y-1">
-              <p className="text-label-sm font-medium text-on-surface-variant">Why we need a new upload:</p>
+            <div className="space-y-0.5">
+              <p className="text-label-sm font-medium text-on-surface-variant">Reason from Manish Cafe:</p>
               <p className="text-body-md text-foreground">&ldquo;{reason}&rdquo;</p>
             </div>
           ) : null}
-          <div className="space-y-1">
-            <p className="text-label-sm font-medium text-on-surface-variant">What to upload:</p>
-            <ul className="list-disc pl-5 text-label-sm text-on-surface-variant space-y-0.5">
+          <div className="space-y-0.5">
+            <p className="text-label-sm font-medium text-on-surface-variant">What you need:</p>
+            <ul className="text-label-sm text-on-surface-variant space-y-0.5">
               {buildDocumentGuidance(documentType).map((line) => (
-                <li key={line}>{line}</li>
+                <li key={line}>• {line}</li>
               ))}
             </ul>
           </div>
           {canUpload ? (
-            <DocumentUploadForm applicationId={applicationId} documentTypeId={documentType.id} label="Replace document" />
+            <DocumentUploadForm
+              applicationId={applicationId}
+              documentTypeId={documentType.id}
+              label="Replace document"
+            />
           ) : null}
         </>
-      ) : IN_REVIEW_STATUSES.has(current.status) ? (
-        <p className="text-label-sm text-on-surface-variant">
-          New document uploaded on {formatDate(current.uploaded_at)}. Waiting for the Manish Cafe team to review it.
-        </p>
-      ) : current.status === "approved" || current.status === "verified" ? (
-        <p className="text-label-sm text-tertiary font-medium">✓ Approved</p>
+      ) : isApproved ? (
+        <div>
+          <p className="text-label-sm font-semibold text-tertiary">✓ Approved</p>
+          <p className="text-label-sm text-on-surface-variant">Reviewed by Manish Cafe</p>
+        </div>
+      ) : isInReview ? (
+        <>
+          <p className="text-label-sm font-semibold text-foreground">⏳ Under review</p>
+          <p className="text-body-md text-on-surface-variant">{current.original_filename}</p>
+          <p className="text-label-sm text-on-surface-variant">Our team is checking this document. No action needed from you.</p>
+          {canUpload ? (
+            <DocumentUploadForm
+              applicationId={applicationId}
+              documentTypeId={documentType.id}
+              label="Replace"
+              variant="secondary"
+            />
+          ) : null}
+        </>
       ) : null}
     </div>
   );

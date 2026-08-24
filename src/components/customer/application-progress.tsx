@@ -71,7 +71,10 @@ export function ActionRequiredBanner({
 
   return (
     <div className="rounded-2xl border border-error bg-error-container/30 p-4 space-y-3">
-      <p className="text-label-lg font-semibold text-error">🟠 Action required</p>
+      <p className="text-label-lg font-semibold text-error">🔴 Action required</p>
+      {progress.actionRequired.length > 1 ? (
+        <p className="text-body-md text-foreground">{progress.actionRequired.length} documents need your attention.</p>
+      ) : null}
       {progress.actionRequired.map((item) => (
         <div key={item.documentId} className="space-y-1.5 rounded-xl bg-surface-container-lowest/60 p-3">
           <p className="text-body-md font-medium text-foreground">
@@ -83,7 +86,12 @@ export function ActionRequiredBanner({
             </p>
           ) : null}
           {canUpload ? (
-            <DocumentUploadForm applicationId={applicationId} documentTypeId={item.documentTypeId} label="Replace document" />
+            <DocumentUploadForm
+              applicationId={applicationId}
+              documentTypeId={item.documentTypeId}
+              label="Replace document"
+              fullWidth
+            />
           ) : null}
         </div>
       ))}

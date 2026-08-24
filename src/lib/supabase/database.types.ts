@@ -329,6 +329,7 @@ export type Database = {
           service_id: string
           status: Database["public"]["Enums"]["application_status"]
           submitted_at: string | null
+          total_price_snapshot: number | null
           updated_at: string
         }
         Insert: {
@@ -346,6 +347,7 @@ export type Database = {
           service_id: string
           status?: Database["public"]["Enums"]["application_status"]
           submitted_at?: string | null
+          total_price_snapshot?: number | null
           updated_at?: string
         }
         Update: {
@@ -363,6 +365,7 @@ export type Database = {
           service_id?: string
           status?: Database["public"]["Enums"]["application_status"]
           submitted_at?: string | null
+          total_price_snapshot?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -822,6 +825,44 @@ export type Database = {
           },
           {
             foreignKeyName: "service_document_types_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_extra_charges: {
+        Row: {
+          amount: number
+          condition_key: string
+          created_at: string
+          display_order: number
+          id: string
+          label: string
+          service_id: string
+        }
+        Insert: {
+          amount: number
+          condition_key: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          label: string
+          service_id: string
+        }
+        Update: {
+          amount?: number
+          condition_key?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          label?: string
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_extra_charges_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"

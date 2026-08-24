@@ -1,6 +1,8 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserProfile } from "@/lib/auth/session";
+import { getApplicationProgress } from "@/lib/applications/progress";
+import { isDocumentRequired } from "@/lib/applications/requirements";
 import type { Tables } from "@/lib/supabase/database.types";
 
 export type CustomerRow = Tables<"customers">;
@@ -26,7 +28,14 @@ export async function getActiveServices() {
   return data;
 }
 
-export async function getServiceWithDocuments(serviceId: string) {
+/**
+ * The service overview only -- no document checklist. Document
+ * requirements are shown later, inside the guided draft-application flow,
+ * only once the customer has actually answered the service's questions
+ * (an unconditional document is meaningless before that; a conditional one
+ * like Aadhaar's Address Proof is actively misleading before that).
+ */
+export async function getService(serviceId: string) {
   const supabase = await createClient();
   const { data: service, error } = await supabase
     .from("services")
@@ -35,17 +44,18 @@ export async function getServiceWithDocuments(serviceId: string) {
     .eq("is_active", true)
     .maybeSingle();
   if (error) throw error;
-  if (!service) return null;
+  return service;
+}
 
-  const { data: requiredDocs } = await supabase
-    .from("service_document_types")
-    .select(
-      "id, is_mandatory, condition_key, display_order, document_type_id, document_types(id, code, name, description, allowed_mime_types, max_file_size_bytes)",
-    )
+export async function getServiceExtraCharges(serviceId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("service_extra_charges")
+    .select("condition_key, label, amount, display_order")
     .eq("service_id", serviceId)
     .order("display_order");
-
-  return { service, requiredDocs: requiredDocs ?? [] };
+  if (error) throw error;
+  return data ?? [];
 }
 
 /**
@@ -66,6 +76,73 @@ export async function getMyApplications() {
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data;
+}
+
+/**
+ * The caller's own applications, each with its canonical progress stage
+ * already computed (getApplicationProgress) -- so the dashboard and
+ * applications list can show the same "Action required" / "We're
+ * reviewing your application" language as the detail page, without
+ * inventing their own per-row status logic. Batches the child-table
+ * lookups (one query for all documents, one for all service_document_types
+ * across every distinct service involved) instead of querying per
+ * application, so this stays cheap regardless of how many applications a
+ * customer has.
+ */
+export async function getMyApplicationsWithProgress() {
+  const customer = await getMyCustomer();
+  if (!customer) return [];
+
+  const supabase = await createClient();
+  const { data: applications, error } = await supabase
+    .from("applications")
+    .select("*, services(name, category)")
+    .eq("customer_id", customer.id)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  if (!applications || applications.length === 0) return [];
+
+  const applicationIds = applications.map((a) => a.id);
+  const serviceIds = [...new Set(applications.map((a) => a.service_id))];
+
+  const [{ data: allDocuments }, { data: allRequirements }] = await Promise.all([
+    supabase
+      .from("application_documents")
+      .select("application_id, document_type_id, status, uploaded_at, rejection_reason, reupload_message, document_types(name)")
+      .in("application_id", applicationIds)
+      .order("uploaded_at", { ascending: false }),
+    supabase
+      .from("service_document_types")
+      .select("service_id, document_type_id, is_mandatory, condition_key")
+      .in("service_id", serviceIds),
+  ]);
+
+  return applications.map((app) => {
+    const answers = (app.answers ?? {}) as Record<string, unknown>;
+    const requirements = (allRequirements ?? []).filter((r) => r.service_id === app.service_id);
+    const docsForApp = (allDocuments ?? []).filter((d) => d.application_id === app.id);
+
+    const latestByType = new Map<string, (typeof docsForApp)[number]>();
+    for (const doc of docsForApp) {
+      if (!latestByType.has(doc.document_type_id)) latestByType.set(doc.document_type_id, doc);
+    }
+
+    const currentRequiredDocuments = requirements
+      .filter((r) => isDocumentRequired(r.condition_key, r.is_mandatory, answers))
+      .map((r) => latestByType.get(r.document_type_id))
+      .filter((doc): doc is NonNullable<typeof doc> => !!doc)
+      .map((doc) => ({
+        id: `${doc.application_id}-${doc.document_type_id}`,
+        documentTypeId: doc.document_type_id,
+        status: doc.status,
+        rejection_reason: doc.rejection_reason,
+        reupload_message: doc.reupload_message,
+        documentTypeName: doc.document_types?.name ?? "Document",
+      }));
+
+    const progress = getApplicationProgress({ applicationStatus: app.status, currentRequiredDocuments });
+    return { application: app, progress };
+  });
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -94,35 +171,41 @@ export async function getApplicationDetail(applicationRef: string) {
   if (error) throw error;
   if (!application) return null;
 
-  const [{ data: requiredDocs }, { data: documents }, { data: history }, { data: messages }] = await Promise.all([
-    supabase
-      .from("service_document_types")
-      .select(
-        "id, is_mandatory, condition_key, display_order, document_type_id, document_types(id, code, name, description, allowed_mime_types, max_file_size_bytes)",
-      )
-      .eq("service_id", application.service_id)
-      .order("display_order"),
-    supabase
-      .from("application_documents")
-      .select("*, document_types(name, code)")
-      .eq("application_id", application.id)
-      .order("uploaded_at", { ascending: false }),
-    supabase
-      .from("application_status_history")
-      .select("*")
-      .eq("application_id", application.id)
-      .order("created_at", { ascending: true }),
-    // application_messages_select scopes this to the caller's own
-    // application (or their retailer's) -- never returns rows for someone
-    // else's application, and application_internal_notes is intentionally
-    // NOT queried here at all: there is no policy granting customers any
-    // access to it, so it isn't just hidden in the UI, it's unreadable.
-    supabase
-      .from("application_messages")
-      .select("*")
-      .eq("application_id", application.id)
-      .order("created_at", { ascending: true }),
-  ]);
+  const [{ data: requiredDocs }, { data: documents }, { data: history }, { data: messages }, { data: extraCharges }] =
+    await Promise.all([
+      supabase
+        .from("service_document_types")
+        .select(
+          "id, is_mandatory, condition_key, display_order, document_type_id, document_types(id, code, name, description, allowed_mime_types, max_file_size_bytes)",
+        )
+        .eq("service_id", application.service_id)
+        .order("display_order"),
+      supabase
+        .from("application_documents")
+        .select("*, document_types(name, code)")
+        .eq("application_id", application.id)
+        .order("uploaded_at", { ascending: false }),
+      supabase
+        .from("application_status_history")
+        .select("*")
+        .eq("application_id", application.id)
+        .order("created_at", { ascending: true }),
+      // application_messages_select scopes this to the caller's own
+      // application (or their retailer's) -- never returns rows for someone
+      // else's application, and application_internal_notes is intentionally
+      // NOT queried here at all: there is no policy granting customers any
+      // access to it, so it isn't just hidden in the UI, it's unreadable.
+      supabase
+        .from("application_messages")
+        .select("*")
+        .eq("application_id", application.id)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("service_extra_charges")
+        .select("condition_key, label, amount, display_order")
+        .eq("service_id", application.service_id)
+        .order("display_order"),
+    ]);
 
   return {
     application,
@@ -130,5 +213,6 @@ export async function getApplicationDetail(applicationRef: string) {
     documents: documents ?? [],
     history: history ?? [],
     messages: messages ?? [],
+    extraCharges: extraCharges ?? [],
   };
 }

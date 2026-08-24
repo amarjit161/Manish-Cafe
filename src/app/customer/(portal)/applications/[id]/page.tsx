@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { getApplicationDetail } from "@/lib/customer/queries";
 import { ApplicationStageBadge } from "@/components/customer/status-badge";
-import { SubmitApplicationButton } from "@/components/customer/submit-application-button";
 import { DocumentReviewCard } from "@/components/customer/document-review-card";
 import { AadhaarUpdateFieldsForm } from "@/components/customer/aadhaar-update-fields-form";
+import { ApplicationReview } from "@/components/customer/application-review";
 import { CustomerMessageThread } from "@/components/customer/message-thread";
 import {
   ApplicationProgressView,
@@ -12,11 +12,14 @@ import {
 } from "@/components/customer/application-progress";
 import { isDocumentRequired } from "@/lib/applications/requirements";
 import { getApplicationProgress } from "@/lib/applications/progress";
+import { computePriceBreakdown } from "@/lib/applications/pricing";
 import { groupDocumentsByType } from "@/lib/applications/documents";
 import { buildApplicationTimeline } from "@/lib/applications/timeline";
 import { formatDate } from "@/lib/format";
+import type { MobileRegisteredAnswer } from "@/lib/applications/aadhaar-fields";
 
 const UPLOADABLE_STATUSES = new Set(["draft", "submitted", "documents_required"]);
+const NON_CURRENT_DOCUMENT_STATUSES = new Set(["rejected", "reupload_required", "deleted"]);
 
 export default async function CustomerApplicationDetailPage({
   params,
@@ -27,12 +30,15 @@ export default async function CustomerApplicationDetailPage({
   const result = await getApplicationDetail(id);
   if (!result) notFound();
 
-  const { application, requiredDocs, documents, history, messages } = result;
+  const { application, requiredDocs, documents, history, messages, extraCharges } = result;
   const timeline = buildApplicationTimeline({ history, documents });
   const answers = (application.answers ?? {}) as Record<string, unknown>;
   const updateFields = Array.isArray(answers.update_fields) ? (answers.update_fields as string[]) : [];
   const otherText = typeof answers.other_text === "string" ? answers.other_text : "";
+  const mobileRegistered = (answers.mobile_registered as MobileRegisteredAnswer | undefined) ?? null;
   const canUpload = UPLOADABLE_STATUSES.has(application.status);
+  const isDraft = application.status === "draft";
+  const isAadhaarUpdate = application.services?.slug === "aadhaar-card-update";
 
   const groupedDocs = groupDocumentsByType(documents);
   const requiredDocRows = requiredDocs.map((rd) => ({
@@ -56,6 +62,22 @@ export default async function CustomerApplicationDetailPage({
       })),
   });
 
+  const liveBreakdown = computePriceBreakdown({ basePrice: application.customer_price_snapshot, answers, extraCharges });
+  const displayedTotal = isDraft ? liveBreakdown.total : (application.total_price_snapshot ?? application.customer_price_snapshot);
+
+  const documentCards = requiredDocRows.map((row) =>
+    row.docType ? (
+      <DocumentReviewCard
+        key={row.typeId}
+        applicationId={application.id}
+        documentType={row.docType}
+        current={row.current}
+        currentlyRequired={row.currentlyRequired}
+        canUpload={canUpload}
+      />
+    ) : null,
+  );
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-surface-container-low p-6 space-y-2">
@@ -66,74 +88,98 @@ export default async function CustomerApplicationDetailPage({
         <p className="text-label-sm text-on-surface-variant">
           {application.application_number ?? "Draft — not yet submitted"}
         </p>
-        <p className="text-body-md text-on-surface-variant">Created {formatDate(application.created_at)}</p>
-        <p className="text-headline-md text-foreground">₹{application.customer_price_snapshot}</p>
+        {!isDraft ? (
+          <p className="text-body-md text-on-surface-variant">Created {formatDate(application.created_at)}</p>
+        ) : null}
+        <p className="text-headline-md text-foreground">₹{displayedTotal}</p>
       </div>
 
-      <ActionRequiredBanner applicationId={application.id} progress={progress} canUpload={canUpload} />
-      <NoActionRequiredBanner progress={progress} />
+      {isDraft ? (
+        <>
+          <p className="text-body-md text-on-surface-variant">
+            Choose what you need, answer a few questions, upload your documents, and submit.
+          </p>
 
-      {application.services?.slug === "aadhaar-card-update" ? (
-        <AadhaarUpdateFieldsForm
-          applicationId={application.id}
-          initialFields={updateFields}
-          initialOtherText={otherText}
-          disabled={application.status !== "draft"}
-        />
-      ) : null}
+          {isAadhaarUpdate ? (
+            <AadhaarUpdateFieldsForm
+              applicationId={application.id}
+              initialFields={updateFields}
+              initialOtherText={otherText}
+              initialMobileRegistered={mobileRegistered}
+              extraCharges={extraCharges}
+              disabled={!isDraft}
+            />
+          ) : null}
 
-      {application.status === "draft" ? <SubmitApplicationButton applicationId={application.id} /> : null}
-
-      <ApplicationProgressView progress={progress} />
-
-      <section className="space-y-2">
-        <h2 className="text-label-lg text-foreground">Documents</h2>
-        {requiredDocRows.length === 0 ? (
-          <p className="text-body-md text-on-surface-variant">No documents required for this service.</p>
-        ) : (
-          <div className="space-y-2">
-            {requiredDocRows.map((row) =>
-              row.docType ? (
-                <DocumentReviewCard
-                  key={row.typeId}
-                  applicationId={application.id}
-                  documentType={row.docType}
-                  current={row.current}
-                  currentlyRequired={row.currentlyRequired}
-                  canUpload={canUpload}
-                />
-              ) : null,
+          <section className="space-y-2">
+            <h2 className="text-label-lg text-foreground">Your documents</h2>
+            <p className="text-body-md text-on-surface-variant">Based on your answers, you need these documents.</p>
+            {requiredDocRows.length === 0 ? (
+              <p className="text-body-md text-on-surface-variant">No documents required for this service.</p>
+            ) : (
+              <div className="space-y-2">{documentCards}</div>
             )}
-          </div>
-        )}
-      </section>
+          </section>
 
-      <section className="space-y-2">
-        {messages.length > 0 ? <h2 className="text-label-lg text-foreground">Messages</h2> : null}
-        <CustomerMessageThread applicationId={application.id} messages={messages} />
-      </section>
+          <ApplicationReview
+            applicationId={application.id}
+            serviceName={application.services?.name ?? "Service"}
+            basePrice={application.customer_price_snapshot}
+            answers={answers}
+            extraCharges={extraCharges}
+            showRequestedUpdates={isAadhaarUpdate}
+            requiredDocs={requiredDocRows.map((r) => ({
+              typeId: r.typeId,
+              name: r.docType?.name ?? "Document",
+              currentlyRequired: r.currentlyRequired,
+              uploaded: !!r.current && !NON_CURRENT_DOCUMENT_STATUSES.has(r.current.status),
+            }))}
+          />
+        </>
+      ) : (
+        <>
+          <ActionRequiredBanner applicationId={application.id} progress={progress} canUpload={canUpload} />
+          <NoActionRequiredBanner progress={progress} />
 
-      <details className="space-y-2">
-        <summary className="cursor-pointer text-label-lg text-foreground">Activity history</summary>
-        {timeline.length === 0 ? (
-          <p className="text-body-md text-on-surface-variant">No activity yet.</p>
-        ) : (
-          <ol className="mt-2 space-y-2">
-            {timeline.map((event, i) => (
-              <li
-                key={`${event.at}-${i}`}
-                className="rounded-xl bg-surface-container-lowest border border-outline-variant p-3 flex items-center justify-between gap-3"
-              >
-                <div>
-                  <p className="text-body-md text-foreground">{event.title}</p>
-                  {event.detail ? <p className="text-label-sm text-on-surface-variant">{event.detail}</p> : null}
-                </div>
-                <span className="text-label-sm text-on-surface-variant whitespace-nowrap">{formatDate(event.at)}</span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </details>
+          <ApplicationProgressView progress={progress} />
+
+          <section className="space-y-2">
+            <h2 className="text-label-lg text-foreground">Your documents</h2>
+            {requiredDocRows.length === 0 ? (
+              <p className="text-body-md text-on-surface-variant">No documents required for this service.</p>
+            ) : (
+              <div className="space-y-2">{documentCards}</div>
+            )}
+          </section>
+
+          <section className="space-y-2">
+            {messages.length > 0 ? <h2 className="text-label-lg text-foreground">Need help?</h2> : null}
+            <CustomerMessageThread applicationId={application.id} messages={messages} />
+          </section>
+
+          <details className="space-y-2">
+            <summary className="cursor-pointer text-label-lg text-foreground">Application history</summary>
+            {timeline.length === 0 ? (
+              <p className="text-body-md text-on-surface-variant">No activity yet.</p>
+            ) : (
+              <ol className="mt-2 space-y-2">
+                {timeline.map((event, i) => (
+                  <li
+                    key={`${event.at}-${i}`}
+                    className="rounded-xl bg-surface-container-lowest border border-outline-variant p-3 flex items-center justify-between gap-3"
+                  >
+                    <div>
+                      <p className="text-body-md text-foreground">{event.title}</p>
+                      {event.detail ? <p className="text-label-sm text-on-surface-variant">{event.detail}</p> : null}
+                    </div>
+                    <span className="text-label-sm text-on-surface-variant whitespace-nowrap">{formatDate(event.at)}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </details>
+        </>
+      )}
     </div>
   );
 }
