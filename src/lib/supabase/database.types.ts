@@ -993,6 +993,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      delete_draft_application: {
+        Args: { p_application_id: string }
+        Returns: string[]
+      }
       current_customer_id: { Args: never; Returns: string }
       current_retailer_id: { Args: never; Returns: string }
       current_role: {

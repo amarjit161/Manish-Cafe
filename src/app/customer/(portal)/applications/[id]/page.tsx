@@ -4,6 +4,7 @@ import { getApplicationDetail, getMyCustomer } from "@/lib/customer/queries";
 import { ApplicationStageBadge } from "@/components/customer/status-badge";
 import { DocumentReviewCard } from "@/components/customer/document-review-card";
 import { AadhaarUpdateFieldsForm } from "@/components/customer/aadhaar-update-fields-form";
+import { DeleteApplicationButton } from "@/components/customer/delete-application-button";
 import { ApplicationReview } from "@/components/customer/application-review";
 import { CustomerMessageThread } from "@/components/customer/message-thread";
 import {
@@ -132,9 +133,12 @@ export default async function CustomerApplicationDetailPage({
 
       {isDraft ? (
         <>
-          <p className="text-body-md text-on-surface-variant">
-            Choose what you need, answer a few questions, upload your documents, and submit.
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-body-md text-on-surface-variant">
+              Choose what you need, answer a few questions, upload your documents, and submit.
+            </p>
+            <DeleteApplicationButton applicationId={application.id} />
+          </div>
 
           {isAadhaarUpdate ? (
             <AadhaarUpdateFieldsForm

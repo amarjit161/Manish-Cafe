@@ -311,21 +311,29 @@ export function AadhaarUpdateFieldsForm({
       ) : null}
 
       {!disabled ? (
-        <div className="sticky bottom-20 md:static z-10 -mx-1 rounded-xl bg-surface-container-low/95 px-1 py-1 backdrop-blur md:mx-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none">
-          {error ? (
-            <p role="alert" className="mb-2 text-label-sm text-error">
-              {error}
-            </p>
-          ) : null}
-          <button
-            type="button"
-            onClick={saveAndContinue}
-            disabled={isPending}
-            className="flex w-full md:w-auto min-h-11 items-center justify-center rounded-lg bg-primary px-6 text-label-lg font-medium text-on-primary disabled:opacity-60"
-          >
-            {isPending ? "Saving…" : saveState === "error" ? "Try again" : saveState === "saved" && !dirty ? "Saved ✓ Continue" : "Save & continue"}
-          </button>
-        </div>
+        saveState === "saved" && !dirty && !isPending ? (
+          // Nothing left to do here -- no lingering clickable button next
+          // to "Review & submit" further down the page. A subtle
+          // confirmation is all this section needs once it's done its job;
+          // editing anything again brings the button back.
+          <p className="text-label-sm font-medium text-tertiary">✓ Saved just now</p>
+        ) : (
+          <div className="sticky bottom-20 md:static z-10 -mx-1 rounded-xl bg-surface-container-low/95 px-1 py-1 backdrop-blur md:mx-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none">
+            {error ? (
+              <p role="alert" className="mb-2 text-label-sm text-error">
+                {error}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={saveAndContinue}
+              disabled={isPending}
+              className="flex w-full md:w-auto min-h-11 items-center justify-center rounded-lg bg-primary px-6 text-label-lg font-medium text-on-primary disabled:opacity-60"
+            >
+              {isPending ? "Saving…" : saveState === "error" ? "Try again" : "Save & continue"}
+            </button>
+          </div>
+        )
       ) : null}
     </div>
   );

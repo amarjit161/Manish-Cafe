@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyCustomer } from "@/lib/customer/queries";
 import { isDocumentRequired } from "@/lib/applications/requirements";
 import { deriveAnswerFlags, type MobileRegisteredAnswer } from "@/lib/applications/aadhaar-fields";
+import { deleteFromR2Worker } from "@/lib/documents/r2-worker";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -57,6 +58,33 @@ export async function createApplication(
   }
 
   redirect(`/customer/applications/${application.id}`);
+}
+
+/**
+ * delete_draft_application() is the only path that can ever remove an
+ * applications row: it independently re-checks ownership and that the
+ * application is still a draft (a customer can never delete a submitted
+ * application, regardless of what this action sends), and returns the R2
+ * object keys of whatever documents it deleted so they can be cleaned up
+ * here -- Postgres has no way to reach the Cloudflare Worker itself.
+ */
+export async function deleteDraftApplication(applicationId: string): Promise<ActionState> {
+  const supabase = await createClient();
+
+  const { data: objectKeys, error } = await supabase.rpc("delete_draft_application", {
+    p_application_id: applicationId,
+  });
+
+  if (error) {
+    return { error: "We couldn't delete this application. Please try again." };
+  }
+
+  for (const key of objectKeys ?? []) {
+    await deleteFromR2Worker(key);
+  }
+
+  revalidatePath("/customer/applications");
+  redirect("/customer/applications?deleted=1");
 }
 
 const NON_CURRENT_DOCUMENT_STATUSES = ["rejected", "reupload_required", "deleted"];

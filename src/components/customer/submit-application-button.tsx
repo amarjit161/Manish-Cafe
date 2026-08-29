@@ -18,7 +18,7 @@ export function SubmitApplicationButton({ applicationId }: { applicationId: stri
         </p>
       ) : null}
       <SubmitButton className="w-full rounded-lg bg-primary text-on-primary py-3 font-semibold disabled:opacity-60">
-        Submit application
+        Review & submit →
       </SubmitButton>
     </form>
   );

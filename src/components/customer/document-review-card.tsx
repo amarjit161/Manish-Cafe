@@ -1,4 +1,5 @@
 import { DocumentUploadForm } from "@/components/customer/document-upload-form";
+import { DocumentPreviewTrigger } from "@/components/customer/document-preview-modal";
 import { buildDocumentGuidance } from "@/lib/documents/guidance";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -6,6 +7,7 @@ type DocumentRow = {
   id: string;
   status: Database["public"]["Enums"]["document_status"];
   original_filename: string;
+  mime_type: string;
   rejection_reason: string | null;
   reupload_message: string | null;
 };
@@ -59,76 +61,67 @@ export function DocumentReviewCard({
   const isInReview = current ? IN_REVIEW_STATUSES.has(current.status) : false;
   const reason = current?.status === "rejected" ? current.rejection_reason : current?.reupload_message;
 
+  if (!current) {
+    return (
+      <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-3 space-y-1.5">
+        <p className="text-body-md font-medium text-foreground">{name}</p>
+        <p className="text-label-sm text-on-surface-variant">
+          {documentType.description ?? `Upload your ${name.toLowerCase()}.`}
+        </p>
+        <p className="text-label-sm text-on-surface-variant">
+          {buildDocumentGuidance(documentType).slice(1).join(" · ")}
+        </p>
+        {canUpload ? (
+          <DocumentUploadForm applicationId={applicationId} documentTypeId={documentType.id} label="Choose file" />
+        ) : (
+          <p className="text-label-sm text-error">Missing</p>
+        )}
+      </div>
+    );
+  }
+
+  const isImage = current.mime_type.startsWith("image/");
+
   return (
     <div
-      className={`rounded-xl border p-4 space-y-3 ${
+      className={`rounded-xl border p-3 space-y-2 ${
         needsAction ? "border-error bg-error-container/20" : "border-outline-variant bg-surface-container-lowest"
       }`}
     >
-      <p className="text-body-lg font-medium text-foreground">{name}</p>
+      <p className="text-body-md font-medium text-foreground">{name}</p>
 
-      {!current ? (
-        <>
-          <p className="text-body-md text-on-surface-variant">
-            {documentType.description ?? `Upload your ${name.toLowerCase()}.`}
-          </p>
-          <ul className="text-label-sm text-on-surface-variant space-y-0.5">
-            {buildDocumentGuidance(documentType)
-              .slice(1)
-              .map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-          </ul>
-          {canUpload ? (
-            <DocumentUploadForm applicationId={applicationId} documentTypeId={documentType.id} label="Choose file" />
-          ) : (
-            <p className="text-label-sm text-error">Missing</p>
-          )}
-        </>
-      ) : needsAction ? (
-        <>
-          <p className="text-label-sm font-semibold text-error">🔴 Action required</p>
-          {reason ? (
-            <div className="space-y-0.5">
-              <p className="text-label-sm font-medium text-on-surface-variant">Reason from Manish Cafe:</p>
-              <p className="text-body-md text-foreground">&ldquo;{reason}&rdquo;</p>
-            </div>
+      <div className="flex items-center gap-3">
+        <DocumentPreviewTrigger documentId={current.id} isImage={isImage} filename={current.original_filename} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-label-sm text-on-surface-variant">{current.original_filename}</p>
+          {needsAction ? (
+            <p className="text-label-sm font-semibold text-error">🔴 Action required</p>
+          ) : isApproved ? (
+            <p className="text-label-sm font-semibold text-tertiary">✓ Approved</p>
+          ) : isInReview ? (
+            <p className="text-label-sm font-semibold text-foreground">⏳ Under review</p>
           ) : null}
-          <div className="space-y-0.5">
-            <p className="text-label-sm font-medium text-on-surface-variant">What you need:</p>
-            <ul className="text-label-sm text-on-surface-variant space-y-0.5">
-              {buildDocumentGuidance(documentType).map((line) => (
-                <li key={line}>• {line}</li>
-              ))}
-            </ul>
-          </div>
-          {canUpload ? (
-            <DocumentUploadForm
-              applicationId={applicationId}
-              documentTypeId={documentType.id}
-              label="Replace document"
-            />
-          ) : null}
-        </>
-      ) : isApproved ? (
-        <div>
-          <p className="text-label-sm font-semibold text-tertiary">✓ Approved</p>
-          <p className="text-label-sm text-on-surface-variant">Reviewed by Manish Cafe</p>
         </div>
-      ) : isInReview ? (
-        <>
-          <p className="text-label-sm font-semibold text-foreground">⏳ Under review</p>
-          <p className="text-body-md text-on-surface-variant">{current.original_filename}</p>
-          <p className="text-label-sm text-on-surface-variant">Our team is checking this document. No action needed from you.</p>
-          {canUpload ? (
-            <DocumentUploadForm
-              applicationId={applicationId}
-              documentTypeId={documentType.id}
-              label="Replace"
-              variant="secondary"
-            />
-          ) : null}
-        </>
+      </div>
+
+      {needsAction && reason ? (
+        <div className="space-y-0.5">
+          <p className="text-label-sm font-medium text-on-surface-variant">Reason from Manish Cafe:</p>
+          <p className="text-body-md text-foreground">&ldquo;{reason}&rdquo;</p>
+        </div>
+      ) : null}
+      {isInReview ? (
+        <p className="text-label-sm text-on-surface-variant">Our team is checking this document. No action needed from you.</p>
+      ) : null}
+      {isApproved ? <p className="text-label-sm text-on-surface-variant">Reviewed by Manish Cafe</p> : null}
+
+      {canUpload ? (
+        <DocumentUploadForm
+          applicationId={applicationId}
+          documentTypeId={documentType.id}
+          label="Replace"
+          variant={needsAction ? "primary" : "secondary"}
+        />
       ) : null}
     </div>
   );
