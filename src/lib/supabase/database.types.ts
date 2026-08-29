@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -402,6 +402,124 @@ export type Database = {
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_slot_templates: {
+        Row: {
+          capacity: number
+          created_at: string
+          display_order: number
+          end_time: string
+          id: string
+          is_active: boolean
+          service_id: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number
+          created_at?: string
+          display_order?: number
+          end_time: string
+          id?: string
+          is_active?: boolean
+          service_id: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          display_order?: number
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          service_id?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_slot_templates_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointments: {
+        Row: {
+          admin_notes: string | null
+          alternative_mobile: string | null
+          application_id: string
+          appointment_date: string
+          created_at: string
+          customer_id: string
+          id: string
+          primary_mobile: string
+          service_id: string
+          slot_template_id: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          alternative_mobile?: string | null
+          application_id: string
+          appointment_date: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          primary_mobile: string
+          service_id: string
+          slot_template_id: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          alternative_mobile?: string | null
+          application_id?: string
+          appointment_date?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          primary_mobile?: string
+          service_id?: string
+          slot_template_id?: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_slot_template_id_fkey"
+            columns: ["slot_template_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_slot_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -879,6 +997,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          requires_appointment: boolean
           retailer_id: string | null
           slug: string | null
           updated_at: string
@@ -891,6 +1010,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          requires_appointment?: boolean
           retailer_id?: string | null
           slug?: string | null
           updated_at?: string
@@ -903,6 +1023,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          requires_appointment?: boolean
           retailer_id?: string | null
           slug?: string | null
           updated_at?: string
@@ -985,6 +1106,39 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      book_appointment: {
+        Args: {
+          p_alternative_mobile?: string
+          p_application_id: string
+          p_date: string
+          p_primary_mobile: string
+          p_slot_template_id: string
+        }
+        Returns: {
+          admin_notes: string | null
+          alternative_mobile: string | null
+          application_id: string
+          appointment_date: string
+          created_at: string
+          customer_id: string
+          id: string
+          primary_mobile: string
+          service_id: string
+          slot_template_id: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cancel_own_appointment: {
+        Args: { p_appointment_id: string }
+        Returns: undefined
+      }
       change_application_status: {
         Args: {
           p_application_id: string
@@ -993,15 +1147,26 @@ export type Database = {
         }
         Returns: undefined
       }
-      delete_draft_application: {
-        Args: { p_application_id: string }
-        Returns: string[]
-      }
       current_customer_id: { Args: never; Returns: string }
       current_retailer_id: { Args: never; Returns: string }
       current_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      delete_draft_application: {
+        Args: { p_application_id: string }
+        Returns: string[]
+      }
+      get_appointment_availability: {
+        Args: { p_date: string; p_service_id: string }
+        Returns: {
+          booked_count: number
+          capacity: number
+          end_time: string
+          remaining: number
+          slot_template_id: string
+          start_time: string
+        }[]
       }
       log_audit_event: {
         Args: {
@@ -1011,6 +1176,33 @@ export type Database = {
           p_resource_type: string
         }
         Returns: undefined
+      }
+      reschedule_appointment: {
+        Args: {
+          p_appointment_id: string
+          p_new_date: string
+          p_new_slot_template_id: string
+        }
+        Returns: {
+          admin_notes: string | null
+          alternative_mobile: string | null
+          application_id: string
+          appointment_date: string
+          created_at: string
+          customer_id: string
+          id: string
+          primary_mobile: string
+          service_id: string
+          slot_template_id: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
@@ -1025,6 +1217,7 @@ export type Database = {
         | "completed"
         | "rejected"
         | "cancelled"
+      appointment_status: "booked" | "completed" | "cancelled" | "no_show"
       BookingStatus:
         | "PENDING"
         | "CONFIRMED"
@@ -1181,6 +1374,7 @@ export const Constants = {
         "rejected",
         "cancelled",
       ],
+      appointment_status: ["booked", "completed", "cancelled", "no_show"],
       BookingStatus: [
         "PENDING",
         "CONFIRMED",

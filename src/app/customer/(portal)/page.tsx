@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { getCurrentUserProfile } from "@/lib/auth/session";
-import { getMyApplicationsWithProgress, getActiveServices } from "@/lib/customer/queries";
+import { getMyApplicationsWithProgress, getActiveServices, getUpcomingAppointment } from "@/lib/customer/queries";
 import { ApplicationSummaryCard } from "@/components/customer/application-summary-card";
 import { EmptyState } from "@/components/customer/empty-state";
 import { getTimeOfDayGreeting } from "@/lib/format";
+import { formatAppointmentDate, formatSlotTime } from "@/lib/applications/appointments";
 
 export default async function CustomerDashboardPage() {
-  const [profile, applications, services] = await Promise.all([
+  const [profile, applications, services, upcomingAppointment] = await Promise.all([
     getCurrentUserProfile(),
     getMyApplicationsWithProgress(),
     getActiveServices(),
+    getUpcomingAppointment(),
   ]);
 
   const firstName = profile?.full_name?.split(" ")[0];
@@ -42,6 +44,19 @@ export default async function CustomerDashboardPage() {
             Your {needsAction.progress.actionRequired[0].documentTypeName} needs to be uploaded again.
           </p>
           <span className="inline-block text-label-sm font-medium text-primary">Fix this →</span>
+        </Link>
+      ) : upcomingAppointment ? (
+        <Link
+          href={`/customer/applications/${upcomingAppointment.applications?.application_number ?? upcomingAppointment.application_id}`}
+          className="block rounded-2xl bg-primary-container/40 border border-primary/20 p-4 space-y-1"
+        >
+          <p className="text-label-lg font-semibold text-foreground">Your upcoming appointment</p>
+          <p className="text-body-md text-foreground">{upcomingAppointment.applications?.services?.name ?? "Appointment"}</p>
+          <p className="text-body-md text-foreground">
+            {formatAppointmentDate(upcomingAppointment.appointment_date)}
+            {upcomingAppointment.appointment_slot_templates ? ` · ${formatSlotTime(upcomingAppointment.appointment_slot_templates.start_time)}` : ""}
+          </p>
+          <span className="inline-block text-label-sm font-medium text-primary">View appointment →</span>
         </Link>
       ) : (
         <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant p-4">
@@ -93,8 +108,8 @@ export default async function CustomerDashboardPage() {
           <EmptyState message="No applications yet. Choose a service above to get started." />
         ) : (
           <div className="space-y-2">
-            {applications.slice(0, 3).map(({ application, progress }) => (
-              <ApplicationSummaryCard key={application.id} application={application} progress={progress} />
+            {applications.slice(0, 3).map(({ application, progress, appointment }) => (
+              <ApplicationSummaryCard key={application.id} application={application} progress={progress} appointment={appointment} />
             ))}
           </div>
         )}

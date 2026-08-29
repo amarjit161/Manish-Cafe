@@ -6,6 +6,7 @@ import { signOutAndRedirect } from "@/lib/auth/actions";
 const BUSINESS_ADMIN_NAV = [
   { href: "/admin/dashboard", label: "Dashboard", icon: "space_dashboard" },
   { href: "/admin/dashboard/applications", label: "Applications", icon: "assignment" },
+  { href: "/admin/dashboard/appointments", label: "Appointments", icon: "event" },
 ] as const;
 
 export default async function AdminSaasPortalLayout({ children }: { children: React.ReactNode }) {

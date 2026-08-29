@@ -4,17 +4,22 @@ import { ApplicationSummaryCard } from "@/components/customer/application-summar
 import { EmptyState } from "@/components/customer/empty-state";
 import type { ApplicationProgress } from "@/lib/applications/progress";
 
+type AppointmentLike = { status: string } | null;
+
 /**
  * Action-required beats everything else regardless of raw status -- a
  * customer whose submitted application needs a re-upload should see it
- * before an untouched draft. Terminal/completed applications sink to the
- * bottom since there's nothing left to do with them.
+ * before an untouched draft. An upcoming (still-booked) appointment beats
+ * an untouched draft too, since there's a real date to prepare for.
+ * Terminal/completed applications sink to the bottom since there's
+ * nothing left to do with them.
  */
-function priorityRank(progress: ApplicationProgress): number {
+function priorityRank(progress: ApplicationProgress, appointment: AppointmentLike): number {
   if (progress.actionRequired.length > 0) return 0;
-  if (progress.stage === "draft") return 1;
-  if (progress.terminal) return 3;
-  return 2;
+  if (appointment?.status === "booked") return 1;
+  if (progress.stage === "draft") return 2;
+  if (progress.terminal) return 4;
+  return 3;
 }
 
 export default async function CustomerApplicationsPage({
@@ -24,7 +29,9 @@ export default async function CustomerApplicationsPage({
 }) {
   const { deleted } = await searchParams;
   const applications = await getMyApplicationsWithProgress();
-  const sorted = [...applications].sort((a, b) => priorityRank(a.progress) - priorityRank(b.progress));
+  const sorted = [...applications].sort(
+    (a, b) => priorityRank(a.progress, a.appointment) - priorityRank(b.progress, b.appointment),
+  );
 
   return (
     <div className="space-y-4">
@@ -38,8 +45,8 @@ export default async function CustomerApplicationsPage({
         <EmptyState message="No applications yet. Choose a service to get started." action={{ label: "Browse services", href: "/customer/services" }} />
       ) : (
         <div className="space-y-3">
-          {sorted.map(({ application, progress }) => (
-            <ApplicationSummaryCard key={application.id} application={application} progress={progress} />
+          {sorted.map(({ application, progress, appointment }) => (
+            <ApplicationSummaryCard key={application.id} application={application} progress={progress} appointment={appointment} />
           ))}
         </div>
       )}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ApplicationProgress } from "@/lib/applications/progress";
 import { ApplicationStageBadge } from "@/components/customer/status-badge";
 import { formatRequestedUpdates } from "@/lib/applications/aadhaar-fields";
+import { APPOINTMENT_STATUS_CHIP, formatAppointmentDateShort, formatSlotTime, type AppointmentStatus } from "@/lib/applications/appointments";
 
 type Application = {
   id: string;
@@ -9,6 +10,12 @@ type Application = {
   answers: unknown;
   services: { name: string | null; slug?: string | null } | null;
 };
+
+type AppointmentSummary = {
+  appointment_date: string;
+  status: AppointmentStatus;
+  appointment_slot_templates: { start_time: string } | null;
+} | null;
 
 const CTA_LABEL: Record<string, string> = {
   draft: "Continue application →",
@@ -26,9 +33,11 @@ const CTA_LABEL: Record<string, string> = {
 export function ApplicationSummaryCard({
   application,
   progress,
+  appointment = null,
 }: {
   application: Application;
   progress: ApplicationProgress;
+  appointment?: AppointmentSummary;
 }) {
   const href = `/customer/applications/${application.application_number ?? application.id}`;
   const isDraft = progress.stage === "draft";
@@ -59,6 +68,15 @@ export function ApplicationSummaryCard({
         <p className="text-body-md text-foreground">
           Your {progress.actionRequired[0].documentTypeName} needs to be replaced.
         </p>
+      ) : null}
+
+      {appointment && appointment.status === "booked" ? (
+        <p className="text-label-sm font-medium text-foreground">
+          Appointment · {formatAppointmentDateShort(appointment.appointment_date)}
+          {appointment.appointment_slot_templates ? ` · ${formatSlotTime(appointment.appointment_slot_templates.start_time)}` : ""}
+        </p>
+      ) : appointment ? (
+        <p className="text-label-sm text-on-surface-variant">{APPOINTMENT_STATUS_CHIP[appointment.status]}</p>
       ) : null}
 
       <span className="inline-block text-label-sm font-medium text-primary">{cta}</span>

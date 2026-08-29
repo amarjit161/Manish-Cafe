@@ -301,3 +301,39 @@ export async function addInternalNote(
   revalidatePath(`/admin/dashboard/applications/${applicationId}`);
   return { success: "Note added." };
 }
+
+const APPOINTMENT_STATUS_VALUES = ["booked", "completed", "cancelled", "no_show"] as const;
+
+/**
+ * Enforced by RLS (appointments_admin_update: current_role() = 'admin'),
+ * not just by the requireAdminUser() check here -- a non-admin session
+ * calling this directly would still be denied at the database.
+ */
+export async function updateAppointmentStatus(
+  appointmentId: string,
+  status: (typeof APPOINTMENT_STATUS_VALUES)[number],
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const user = await requireAdminUser(supabase);
+  if (!user) return { error: "Unauthorized." };
+
+  if (!APPOINTMENT_STATUS_VALUES.includes(status)) return { error: "Invalid status." };
+
+  const { error } = await supabase.from("appointments").update({ status }).eq("id", appointmentId);
+  if (error) return { error: "Could not update the appointment." };
+
+  revalidatePath("/admin/dashboard/appointments");
+  return { success: "Appointment updated." };
+}
+
+export async function updateAppointmentNotes(appointmentId: string, notes: string): Promise<ActionState> {
+  const supabase = await createClient();
+  const user = await requireAdminUser(supabase);
+  if (!user) return { error: "Unauthorized." };
+
+  const { error } = await supabase.from("appointments").update({ admin_notes: notes }).eq("id", appointmentId);
+  if (error) return { error: "Could not save the note." };
+
+  revalidatePath("/admin/dashboard/appointments");
+  return { success: "Note saved." };
+}

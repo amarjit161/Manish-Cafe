@@ -5,6 +5,8 @@ import { ApplicationStageBadge } from "@/components/customer/status-badge";
 import { DocumentReviewCard } from "@/components/customer/document-review-card";
 import { AadhaarUpdateFieldsForm } from "@/components/customer/aadhaar-update-fields-form";
 import { DeleteApplicationButton } from "@/components/customer/delete-application-button";
+import { AppointmentBooker } from "@/components/customer/appointment-booker";
+import { AppointmentCard } from "@/components/customer/appointment-card";
 import { ApplicationReview } from "@/components/customer/application-review";
 import { CustomerMessageThread } from "@/components/customer/message-thread";
 import {
@@ -35,7 +37,7 @@ export default async function CustomerApplicationDetailPage({
   const [result, customer] = await Promise.all([getApplicationDetail(id), getMyCustomer()]);
   if (!result) notFound();
 
-  const { application, requiredDocs, documents, history, messages, extraCharges } = result;
+  const { application, requiredDocs, documents, history, messages, extraCharges, appointment } = result;
 
   if (submitted === "1" && application.status !== "draft") {
     return (
@@ -196,6 +198,30 @@ export default async function CustomerApplicationDetailPage({
               <div className="space-y-2">{documentCards}</div>
             )}
           </section>
+
+          {application.services?.requires_appointment ? (
+            <section className="space-y-2">
+              {appointment && appointment.status === "booked" ? (
+                <AppointmentCard
+                  appointment={appointment}
+                  requiredDocNames={requiredDocRows.filter((r) => r.currentlyRequired).map((r) => r.docType?.name ?? "Document")}
+                />
+              ) : (
+                <div className="rounded-2xl border border-error/40 bg-error-container/20 p-4 space-y-3">
+                  <p className="text-label-lg font-semibold text-foreground">Appointment required</p>
+                  <p className="text-body-md text-on-surface-variant">
+                    This service needs a short visit to Manish Cafe &amp; Cyber Zone. Choose a time that works for you.
+                  </p>
+                  <AppointmentBooker
+                    applicationId={application.id}
+                    serviceId={application.service_id}
+                    initialPrimaryMobile={contactMobile}
+                    initialAlternativeMobile={contactAltMobile}
+                  />
+                </div>
+              )}
+            </section>
+          ) : null}
 
           <section className="space-y-2">
             {messages.length > 0 ? <h2 className="text-label-lg text-foreground">Messages</h2> : null}

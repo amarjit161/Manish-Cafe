@@ -125,3 +125,64 @@ export async function getApplicationDetailForAdmin(applicationId: string) {
     requiredDocs: requiredDocs ?? [],
   };
 }
+
+export type AdminAppointmentFilters = {
+  date?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  status?: string;
+  mobileRegistered?: "yes" | "no" | "unknown" | "registered_other";
+  search?: string;
+};
+
+/**
+ * appointments_select already grants admin unconditional read access
+ * (current_role() = 'admin'), same as every other admin query here --
+ * this just shapes and filters that same authorized read, it does not
+ * grant anything on its own. mobile_registered isn't a column on
+ * appointments (it lives in applications.answers, set once during the
+ * Aadhaar flow) so that filter is applied in application code after the
+ * join rather than as a second, duplicate copy of the same fact.
+ */
+export async function getAdminAppointments(filters: AdminAppointmentFilters = {}) {
+  const supabase = await createClient();
+  let query = supabase
+    .from("appointments")
+    .select(
+      "*, appointment_slot_templates(start_time, end_time), applications(application_number, status, answers, services(name)), customers(full_name)",
+    )
+    .order("appointment_date", { ascending: true });
+
+  if (filters.date) query = query.eq("appointment_date", filters.date);
+  if (filters.dateFrom) query = query.gte("appointment_date", filters.dateFrom);
+  if (filters.dateTo) query = query.lte("appointment_date", filters.dateTo);
+  if (filters.status) query = query.eq("status", filters.status as "booked" | "completed" | "cancelled" | "no_show");
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  // Search spans a joined customer name + application number, which
+  // PostgREST can't express in a single .or() across relations -- this
+  // dataset (a day/week's worth of appointments) is small enough that
+  // filtering after the fetch is simpler and no less correct than a
+  // more elaborate embedded-filter query.
+  let rows = data ?? [];
+  const term = filters.search?.trim().toLowerCase();
+  if (term) {
+    rows = rows.filter(
+      (r) =>
+        r.primary_mobile?.toLowerCase().includes(term) ||
+        r.alternative_mobile?.toLowerCase().includes(term) ||
+        r.customers?.full_name?.toLowerCase().includes(term) ||
+        r.applications?.application_number?.toLowerCase().includes(term),
+    );
+  }
+  if (filters.mobileRegistered) {
+    rows = rows.filter((r) => {
+      const answers = (r.applications?.answers ?? {}) as Record<string, unknown>;
+      return answers.mobile_registered === filters.mobileRegistered;
+    });
+  }
+
+  return rows;
+}

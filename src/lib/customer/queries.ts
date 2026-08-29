@@ -105,7 +105,7 @@ export async function getMyApplicationsWithProgress() {
   const applicationIds = applications.map((a) => a.id);
   const serviceIds = [...new Set(applications.map((a) => a.service_id))];
 
-  const [{ data: allDocuments }, { data: allRequirements }] = await Promise.all([
+  const [{ data: allDocuments }, { data: allRequirements }, { data: allAppointments }] = await Promise.all([
     supabase
       .from("application_documents")
       .select("application_id, document_type_id, status, uploaded_at, rejection_reason, reupload_message, document_types(name)")
@@ -115,6 +115,10 @@ export async function getMyApplicationsWithProgress() {
       .from("service_document_types")
       .select("service_id, document_type_id, is_mandatory, condition_key")
       .in("service_id", serviceIds),
+    supabase
+      .from("appointments")
+      .select("application_id, appointment_date, status, appointment_slot_templates(start_time)")
+      .in("application_id", applicationIds),
   ]);
 
   return applications.map((app) => {
@@ -141,7 +145,8 @@ export async function getMyApplicationsWithProgress() {
       }));
 
     const progress = getApplicationProgress({ applicationStatus: app.status, currentRequiredDocuments });
-    return { application: app, progress };
+    const appointment = (allAppointments ?? []).find((a) => a.application_id === app.id) ?? null;
+    return { application: app, progress, appointment };
   });
 }
 
@@ -165,13 +170,13 @@ export async function getApplicationDetail(applicationRef: string) {
   const lookupColumn = UUID_PATTERN.test(applicationRef) ? "id" : "application_number";
   const { data: application, error } = await supabase
     .from("applications")
-    .select("*, services(id, name, description, category, slug)")
+    .select("*, services(id, name, description, category, slug, requires_appointment)")
     .eq(lookupColumn, applicationRef)
     .maybeSingle();
   if (error) throw error;
   if (!application) return null;
 
-  const [{ data: requiredDocs }, { data: documents }, { data: history }, { data: messages }, { data: extraCharges }] =
+  const [{ data: requiredDocs }, { data: documents }, { data: history }, { data: messages }, { data: extraCharges }, { data: appointment }] =
     await Promise.all([
       supabase
         .from("service_document_types")
@@ -205,6 +210,13 @@ export async function getApplicationDetail(applicationRef: string) {
         .select("condition_key, label, amount, display_order")
         .eq("service_id", application.service_id)
         .order("display_order"),
+      // applications.id is unique on appointments (one appointment per
+      // application), so .maybeSingle() rather than a list.
+      supabase
+        .from("appointments")
+        .select("*, appointment_slot_templates(start_time, end_time)")
+        .eq("application_id", application.id)
+        .maybeSingle(),
     ]);
 
   return {
@@ -214,5 +226,48 @@ export async function getApplicationDetail(applicationRef: string) {
     history: history ?? [],
     messages: messages ?? [],
     extraCharges: extraCharges ?? [],
+    appointment: appointment ?? null,
   };
+}
+
+/**
+ * Read-only availability preview for a service/date -- SECURITY DEFINER
+ * on the database side (get_appointment_availability) so the count is
+ * accurate across every customer's bookings, not just the caller's own
+ * RLS-visible rows. Never used to decide whether a booking succeeds;
+ * book_appointment() re-checks capacity itself, inside a lock, at the
+ * moment of booking.
+ */
+export async function getAppointmentAvailability(serviceId: string, date: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_appointment_availability", {
+    p_service_id: serviceId,
+    p_date: date,
+  });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * The single soonest upcoming (not yet past, still "booked") appointment
+ * across all of the caller's applications -- for the home page's
+ * priority banner. RLS already scopes appointments to the caller's own
+ * customer_id regardless of this query.
+ */
+export async function getUpcomingAppointment() {
+  const customer = await getMyCustomer();
+  if (!customer) return null;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("*, appointment_slot_templates(start_time, end_time), applications(application_number, services(name))")
+    .eq("customer_id", customer.id)
+    .eq("status", "booked")
+    .gte("appointment_date", new Date().toISOString().slice(0, 10))
+    .order("appointment_date", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }

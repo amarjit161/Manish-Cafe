@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getMyCustomer } from "@/lib/customer/queries";
+import { getMyCustomer, getAppointmentAvailability } from "@/lib/customer/queries";
 import { isDocumentRequired } from "@/lib/applications/requirements";
 import { deriveAnswerFlags, type MobileRegisteredAnswer } from "@/lib/applications/aadhaar-fields";
 import { deleteFromR2Worker } from "@/lib/documents/r2-worker";
@@ -287,4 +287,80 @@ export async function sendCustomerMessage(
 
   if (error) return { error: "We couldn't send your message. Please try again." };
   revalidatePath(`/customer/applications/${applicationId}`);
+}
+
+export type AppointmentActionState = { error?: string; success?: true } | undefined;
+
+/**
+ * Thin server-side wrapper so the booking UI (a client component) can
+ * fetch real availability on demand -- e.g. when the customer picks a
+ * different date -- without a full page navigation. Read-only; never
+ * used to decide whether a booking succeeds (book_appointment() re-checks
+ * capacity itself at the moment of booking).
+ */
+export async function fetchAppointmentAvailability(serviceId: string, date: string) {
+  return getAppointmentAvailability(serviceId, date);
+}
+
+/**
+ * book_appointment() independently re-verifies ownership of
+ * applicationId, that the service actually requires an appointment, and
+ * -- inside a row lock on the slot template -- that capacity hasn't been
+ * exhausted, so nothing this action sends is trusted as-is; it only
+ * forwards what the customer picked.
+ */
+export async function bookAppointment(
+  applicationId: string,
+  params: { slotTemplateId: string; date: string; primaryMobile: string; alternativeMobile?: string },
+): Promise<AppointmentActionState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("book_appointment", {
+    p_application_id: applicationId,
+    p_slot_template_id: params.slotTemplateId,
+    p_date: params.date,
+    p_primary_mobile: params.primaryMobile,
+    p_alternative_mobile: params.alternativeMobile,
+  });
+
+  if (error) {
+    return { error: error.message.includes("fully booked") ? "That time is fully booked. Please choose another." : "We couldn't book that appointment. Please try again." };
+  }
+
+  revalidatePath(`/customer/applications/${applicationId}`);
+  revalidatePath("/customer");
+  return { success: true };
+}
+
+export async function rescheduleAppointment(
+  appointmentId: string,
+  applicationId: string,
+  params: { slotTemplateId: string; date: string },
+): Promise<AppointmentActionState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reschedule_appointment", {
+    p_appointment_id: appointmentId,
+    p_new_slot_template_id: params.slotTemplateId,
+    p_new_date: params.date,
+  });
+
+  if (error) {
+    return { error: error.message.includes("fully booked") ? "That time is fully booked. Please choose another." : "We couldn't change your appointment. Please try again." };
+  }
+
+  revalidatePath(`/customer/applications/${applicationId}`);
+  revalidatePath("/customer");
+  return { success: true };
+}
+
+export async function cancelAppointment(appointmentId: string, applicationId: string): Promise<AppointmentActionState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_own_appointment", { p_appointment_id: appointmentId });
+
+  if (error) {
+    return { error: "We couldn't cancel your appointment. Please try again." };
+  }
+
+  revalidatePath(`/customer/applications/${applicationId}`);
+  revalidatePath("/customer");
+  return { success: true };
 }
