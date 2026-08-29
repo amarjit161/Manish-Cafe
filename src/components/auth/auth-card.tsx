@@ -42,7 +42,7 @@ export function AuthFieldError({ message }: { message?: string }) {
 export function AuthFieldSuccess({ message }: { message?: string }) {
   if (!message) return null;
   return (
-    <p role="status" className="rounded-lg bg-tertiary-container text-on-tertiary-container text-label-sm px-3 py-2">
+    <p role="status" className="rounded-lg bg-success-container text-on-success-container text-label-sm px-3 py-2">
       {message}
     </p>
   );

@@ -13,7 +13,7 @@ export default async function AdminSaasPortalLayout({ children }: { children: Re
   await requirePortalSession("admin", "/admin/dashboard/login");
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-admin-bg text-foreground">
       <aside className="fixed inset-y-0 left-0 z-[60] hidden md:flex flex-col bg-tertiary-container h-full w-72 shadow-2xl">
         <div className="text-2xl font-black text-on-tertiary-container p-6 tracking-tight">{SITE_NAME}</div>
         <div className="px-6 pb-4 text-label-sm text-on-tertiary-container/70 uppercase tracking-wide">

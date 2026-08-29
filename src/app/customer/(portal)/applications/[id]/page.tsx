@@ -42,7 +42,7 @@ export default async function CustomerApplicationDetailPage({
   if (submitted === "1" && application.status !== "draft") {
     return (
       <div className="space-y-4 text-center py-8">
-        <p className="text-headline-lg text-tertiary">✓</p>
+        <p className="text-headline-lg text-success">✓</p>
         <h1 className="text-headline-md text-foreground">Application submitted</h1>
         <p className="text-body-md text-on-surface-variant">Your application has been received.</p>
         <div className="rounded-2xl bg-surface-container-low p-4 inline-block">

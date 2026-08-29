@@ -316,7 +316,7 @@ export function AadhaarUpdateFieldsForm({
           // to "Review & submit" further down the page. A subtle
           // confirmation is all this section needs once it's done its job;
           // editing anything again brings the button back.
-          <p className="text-label-sm font-medium text-tertiary">✓ Saved just now</p>
+          <p className="text-label-sm font-medium text-success">✓ Saved just now</p>
         ) : (
           <div className="sticky bottom-20 md:static z-10 -mx-1 rounded-xl bg-surface-container-low/95 px-1 py-1 backdrop-blur md:mx-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none">
             {error ? (

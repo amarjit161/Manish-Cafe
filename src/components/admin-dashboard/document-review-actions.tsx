@@ -50,7 +50,7 @@ export function DocumentReviewActions({
   const [openPanel, setOpenPanel] = useState<"reject" | "reupload" | null>(null);
 
   if (status === "approved") {
-    return <p className="text-label-sm text-tertiary font-medium">✓ Approved — no further action needed.</p>;
+    return <p className="text-label-sm text-success font-medium">✓ Approved — no further action needed.</p>;
   }
   if (status === "deleted") {
     return null;
@@ -97,7 +97,7 @@ export function DocumentReviewActions({
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <form action={approveAction}>
-          <SubmitButton className="rounded-lg bg-tertiary text-on-tertiary px-3 py-1.5 text-label-sm font-medium disabled:opacity-60">
+          <SubmitButton className="rounded-lg bg-success text-on-success px-3 py-1.5 text-label-sm font-medium disabled:opacity-60">
             Approve
           </SubmitButton>
         </form>

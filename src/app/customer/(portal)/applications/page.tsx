@@ -37,7 +37,7 @@ export default async function CustomerApplicationsPage({
     <div className="space-y-4">
       <h1 className="text-headline-md text-foreground">My applications</h1>
       {deleted === "1" ? (
-        <p className="rounded-xl bg-tertiary-container text-on-tertiary-container text-body-md px-4 py-3">
+        <p className="rounded-xl bg-success-container text-on-success-container text-body-md px-4 py-3">
           Application deleted successfully.
         </p>
       ) : null}

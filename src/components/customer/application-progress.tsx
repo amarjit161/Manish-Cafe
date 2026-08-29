@@ -8,7 +8,7 @@ const TERMINAL_COPY: Record<NonNullable<ApplicationProgress["terminal"]>, { icon
 };
 
 function StepMarker({ state }: { state: "done" | "current" | "upcoming" }) {
-  if (state === "done") return <span className="text-tertiary">✓</span>;
+  if (state === "done") return <span className="text-success">✓</span>;
   if (state === "current") return <span className="text-primary">●</span>;
   return <span className="text-on-surface-variant">○</span>;
 }
@@ -113,8 +113,8 @@ export function NoActionRequiredBanner({ progress }: { progress: ApplicationProg
   if (!detail) return null;
 
   return (
-    <div className="rounded-2xl border border-tertiary/40 bg-tertiary-container/30 p-4">
-      <p className="text-body-lg font-medium text-tertiary">✓ No action required</p>
+    <div className="rounded-2xl border border-success/40 bg-success-container/30 p-4">
+      <p className="text-body-lg font-medium text-success">✓ No action required</p>
       <p className="text-body-md text-foreground mt-1">{detail}</p>
     </div>
   );

@@ -7,9 +7,13 @@ const STATUS_STYLES: Record<ApplicationStatus, string> = {
   draft: "bg-surface-container-high text-on-surface-variant",
   submitted: "bg-secondary-container text-on-secondary-container",
   under_review: "bg-secondary-container text-on-secondary-container",
-  documents_required: "bg-error-container text-on-error-container",
-  processing: "bg-tertiary-container text-on-tertiary-container",
-  completed: "bg-tertiary text-on-tertiary",
+  // A nudge, not a failure -- warning-amber, matching STAGE_TONES'
+  // existing "warning" classification for this same stage.
+  documents_required: "bg-warning-container text-on-warning-container",
+  // Grouped with the other in-progress states rather than tertiary
+  // (Stitch's tertiary is a saffron accent color, not "in progress").
+  processing: "bg-secondary-container text-on-secondary-container",
+  completed: "bg-success text-on-success",
   rejected: "bg-error-container text-on-error-container",
   cancelled: "bg-surface-container-high text-on-surface-variant",
 };
@@ -40,8 +44,8 @@ type DocumentStatus = Database["public"]["Enums"]["document_status"];
 const DOCUMENT_STATUS_STYLES: Record<DocumentStatus, string> = {
   uploaded: "bg-secondary-container text-on-secondary-container",
   under_review: "bg-secondary-container text-on-secondary-container",
-  approved: "bg-tertiary text-on-tertiary",
-  verified: "bg-tertiary text-on-tertiary",
+  approved: "bg-success text-on-success",
+  verified: "bg-success text-on-success",
   rejected: "bg-error-container text-on-error-container",
   reupload_required: "bg-error-container text-on-error-container",
   deleted: "bg-surface-container-high text-on-surface-variant",
@@ -68,8 +72,8 @@ export function DocumentStatusBadge({ status }: { status: DocumentStatus }) {
 }
 
 const STAGE_TONE_STYLES: Record<(typeof STAGE_TONES)[ApplicationStage], string> = {
-  success: "bg-tertiary text-on-tertiary",
-  warning: "bg-error-container text-on-error-container",
+  success: "bg-success text-on-success",
+  warning: "bg-warning-container text-on-warning-container",
   info: "bg-primary-container text-on-primary-container",
   neutral: "bg-surface-container-high text-on-surface-variant",
   error: "bg-error-container text-on-error-container",

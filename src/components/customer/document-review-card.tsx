@@ -97,7 +97,7 @@ export function DocumentReviewCard({
           {needsAction ? (
             <p className="text-label-sm font-semibold text-error">🔴 Action required</p>
           ) : isApproved ? (
-            <p className="text-label-sm font-semibold text-tertiary">✓ Approved</p>
+            <p className="text-label-sm font-semibold text-success">✓ Approved</p>
           ) : isInReview ? (
             <p className="text-label-sm font-semibold text-foreground">⏳ Under review</p>
           ) : null}
