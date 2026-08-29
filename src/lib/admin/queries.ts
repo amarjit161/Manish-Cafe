@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/database.types";
 
 /**
  * All queries here run through the normal RLS-respecting server client
@@ -46,23 +47,72 @@ export async function getAdminDashboardStats() {
   };
 }
 
-export async function getAllApplicationsForAdmin() {
+export type AdminApplicationFilters = {
+  search?: string;
+  status?: string;
+  serviceId?: string;
+  createdWithin?: "today" | "week" | "month";
+};
+
+function startOfCreatedWindow(window: "today" | "week" | "month"): string {
+  const now = new Date();
+  if (window === "today") {
+    now.setHours(0, 0, 0, 0);
+  } else if (window === "week") {
+    now.setDate(now.getDate() - 7);
+  } else {
+    now.setDate(now.getDate() - 30);
+  }
+  return now.toISOString();
+}
+
+/**
+ * Status/service/date narrow the actual query (cheap, indexable columns).
+ * Free-text search spans a joined customer's name/email/phone, which
+ * PostgREST can't express as a single filter across relations -- same
+ * reasoning as the appointments register's search. Applications is a
+ * small table for this business (dozens, not millions of rows), so
+ * fetching a generous bound and filtering in application code is simpler
+ * and no less correct than a more elaborate embedded-filter query or a
+ * dedicated search index. The bound is only raised when a search term is
+ * present -- without one, this preserves the original "most recent 100"
+ * behavior exactly.
+ */
+export async function getAllApplicationsForAdmin(filters: AdminApplicationFilters = {}) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("applications")
     .select(
-      "id, application_number, status, customer_price_snapshot, created_at, updated_at, customers(full_name), services(name), application_documents(status)",
+      "id, application_number, status, customer_price_snapshot, created_at, updated_at, customers(full_name, email, phone), services(id, name), application_documents(status)",
     )
-    .order("created_at", { ascending: false })
-    .limit(100);
+    .order("created_at", { ascending: false });
 
+  if (filters.status) query = query.eq("status", filters.status as Database["public"]["Enums"]["application_status"]);
+  if (filters.serviceId) query = query.eq("service_id", filters.serviceId);
+  if (filters.createdWithin) query = query.gte("created_at", startOfCreatedWindow(filters.createdWithin));
+
+  query = query.limit(filters.search?.trim() ? 1000 : 100);
+
+  const { data, error } = await query;
   if (error) throw error;
+
+  let rows = data ?? [];
+  const term = filters.search?.trim().toLowerCase();
+  if (term) {
+    rows = rows.filter(
+      (a) =>
+        a.application_number?.toLowerCase().includes(term) ||
+        a.customers?.full_name?.toLowerCase().includes(term) ||
+        a.customers?.email?.toLowerCase().includes(term) ||
+        a.customers?.phone?.toLowerCase().includes(term),
+    );
+  }
 
   // Document progress ("2/3 documents") is computed here rather than in a
   // view -- documents are the currently-required set only, but the list
   // page shows a simple total/verified count, not the conditional
   // requirement logic that the detail page needs.
-  return (data ?? []).map((application) => {
+  return rows.map((application) => {
     const documents = application.application_documents ?? [];
     const approvedCount = documents.filter((d) => d.status === "approved" || d.status === "verified").length;
     return {
@@ -70,6 +120,13 @@ export async function getAllApplicationsForAdmin() {
       documentCounts: { approved: approvedCount, total: documents.length },
     };
   });
+}
+
+export async function getAllServicesForAdminFilter() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("services").select("id, name").order("name");
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function getApplicationDetailForAdmin(applicationId: string) {

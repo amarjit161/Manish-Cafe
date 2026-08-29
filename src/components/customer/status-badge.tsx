@@ -14,7 +14,7 @@ const STATUS_STYLES: Record<ApplicationStatus, string> = {
   cancelled: "bg-surface-container-high text-on-surface-variant",
 };
 
-const STATUS_LABELS: Record<ApplicationStatus, string> = {
+export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   draft: "Draft",
   submitted: "Submitted",
   under_review: "Under review",
