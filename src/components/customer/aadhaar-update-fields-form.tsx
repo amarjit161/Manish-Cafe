@@ -3,23 +3,47 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateApplicationAnswers } from "@/lib/customer/actions";
-import { AADHAAR_UPDATE_FIELDS, MOBILE_REGISTERED_OPTIONS, type MobileRegisteredAnswer } from "@/lib/applications/aadhaar-fields";
+import {
+  AADHAAR_UPDATE_FIELDS,
+  MOBILE_REGISTERED_OPTIONS,
+  deriveAnswerFlags,
+  type MobileRegisteredAnswer,
+} from "@/lib/applications/aadhaar-fields";
+import { isDocumentRequired } from "@/lib/applications/requirements";
+import { computePriceBreakdown } from "@/lib/applications/pricing";
 
 type ExtraCharge = { condition_key: string; label: string; amount: number };
+type DocRequirement = { typeId: string; name: string; conditionKey: string | null; isMandatory: boolean };
 
-const FLAG_BY_MOBILE_ANSWER: Partial<Record<MobileRegisteredAnswer, string>> = {
-  no: "mobile_not_registered",
-  registered_other: "mobile_registered_other",
+const FIELD_DESCRIPTIONS: Partial<Record<(typeof AADHAAR_UPDATE_FIELDS)[number]["key"], string>> = {
+  name: "Update the name on your Aadhaar",
+  father_name: "Update your father's name",
+  mother_name: "Update your mother's name",
+  spouse_name: "Update your husband/wife's name",
+  dob: "Update your date of birth",
+  gender: "Update your gender",
+  mobile: "Link or update your mobile number",
+  email: "Add or update your email address",
+  address: "Update your address",
+  other: "Something else not listed here",
 };
 
 /**
- * Persists into applications.answers ({ update_fields, other_text,
- * mobile_registered, flags }), the same generic column isDocumentRequired()
- * and computePriceBreakdown() read. Selecting "Address" is what turns
- * Address Proof from optional to required; the mobile-number answer is
- * what can add a configured extra charge -- nothing about this is
- * Aadhaar-specific in the requirements/pricing engines, only this form's
- * field list is.
+ * Everything in this form is local-client state until "Save & continue" is
+ * pressed. It used to fire a Server Action (a DB update, then
+ * router.refresh() re-rendering the whole page) on every single checkbox
+ * toggle, radio choice, or text-field blur -- on this deployment, each of
+ * those round-trips measured 4-8 seconds, so five quick clicks meant five
+ * multi-second stalls. Real interactions should feel instant; only an
+ * explicit save should ever touch the network.
+ *
+ * The price preview and document-requirement hints below run
+ * computePriceBreakdown()/isDocumentRequired() -- the exact same pure,
+ * shared functions the server uses -- against this local state, so the
+ * preview is never a second, divergent pricing implementation. It is only
+ * ever a preview: change_application_status() independently recomputes
+ * and snapshots the real price server-side at submission regardless of
+ * what this component ever showed.
  */
 export function AadhaarUpdateFieldsForm({
   applicationId,
@@ -29,7 +53,9 @@ export function AadhaarUpdateFieldsForm({
   initialContactMobile,
   initialContactAltMobile,
   initialContactEmail,
+  basePrice,
   extraCharges,
+  requiredDocs,
   disabled,
 }: {
   applicationId: string;
@@ -39,7 +65,9 @@ export function AadhaarUpdateFieldsForm({
   initialContactMobile: string;
   initialContactAltMobile: string;
   initialContactEmail: string;
+  basePrice: number;
   extraCharges: ExtraCharge[];
+  requiredDocs: DocRequirement[];
   disabled: boolean;
 }) {
   const router = useRouter();
@@ -50,83 +78,79 @@ export function AadhaarUpdateFieldsForm({
   const [contactAltMobile, setContactAltMobile] = useState(initialContactAltMobile);
   const [contactEmail, setContactEmail] = useState(initialContactEmail);
   const [isPending, startTransition] = useTransition();
+  const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
 
-  function save(next: {
-    updateFields: string[];
-    otherText: string;
-    mobileRegistered: MobileRegisteredAnswer | null;
-    contactMobile: string;
-    contactAltMobile: string;
-    contactEmail: string;
-  }) {
-    startTransition(async () => {
-      const result = await updateApplicationAnswers(applicationId, {
-        updateFields: next.updateFields,
-        otherText: next.otherText,
-        mobileRegistered: next.mobileRegistered ?? undefined,
-        contactMobile: next.contactMobile,
-        contactAltMobile: next.contactAltMobile,
-        contactEmail: next.contactEmail,
-      });
-      if (result?.error) {
-        setError(result.error);
-      } else {
-        setError(null);
-        router.refresh();
-      }
-    });
+  function markDirty() {
+    setDirty(true);
+    setSaveState("idle");
   }
 
   function toggle(key: string) {
-    if (disabled || isPending) return;
-    const next = selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key];
-    setSelected(next);
-    save({ updateFields: next, otherText, mobileRegistered, contactMobile, contactAltMobile, contactEmail });
+    if (disabled) return;
+    setSelected((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+    markDirty();
   }
 
-  function commitOtherText() {
+  function saveAndContinue() {
     if (disabled || isPending) return;
-    save({ updateFields: selected, otherText, mobileRegistered, contactMobile, contactAltMobile, contactEmail });
+    startTransition(async () => {
+      const result = await updateApplicationAnswers(applicationId, {
+        updateFields: selected,
+        otherText,
+        mobileRegistered: mobileRegistered ?? undefined,
+        contactMobile,
+        contactAltMobile,
+        contactEmail,
+      });
+      if (result?.error) {
+        // Local selections are left exactly as the customer made them --
+        // a failed save must never erase what they picked.
+        setError(result.error);
+        setSaveState("error");
+        return;
+      }
+      setError(null);
+      setSaveState("saved");
+      setDirty(false);
+      router.refresh();
+      document.getElementById("documents-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
-  function chooseMobileRegistered(value: MobileRegisteredAnswer) {
-    if (disabled || isPending) return;
-    setMobileRegistered(value);
-    save({ updateFields: selected, otherText, mobileRegistered: value, contactMobile, contactAltMobile, contactEmail });
-  }
-
-  function commitContactInfo() {
-    if (disabled || isPending) return;
-    save({ updateFields: selected, otherText, mobileRegistered, contactMobile, contactAltMobile, contactEmail });
-  }
-
-  function chargeFor(value: MobileRegisteredAnswer): ExtraCharge | undefined {
-    const flag = FLAG_BY_MOBILE_ANSWER[value];
-    if (!flag) return undefined;
-    return extraCharges.find((c) => c.condition_key === flag);
-  }
+  const localFlags = deriveAnswerFlags({ mobile_registered: mobileRegistered ?? undefined });
+  const preview = computePriceBreakdown({ basePrice, answers: { flags: localFlags }, extraCharges });
+  const neededDocs = requiredDocs.filter((d) => isDocumentRequired(d.conditionKey, d.isMandatory, { update_fields: selected }));
 
   return (
     <div className="space-y-4 rounded-2xl bg-surface-container-low p-4">
       <div className="space-y-3">
         <p className="text-label-lg text-foreground">What would you like to update?</p>
-        <div className="space-y-1">
-          {AADHAAR_UPDATE_FIELDS.map((f) => (
-            <label
-              key={f.key}
-              className="flex min-h-11 items-center gap-3 rounded-lg px-1 py-1.5 text-body-md text-foreground"
-            >
-              <input
-                type="checkbox"
-                checked={selected.includes(f.key)}
-                disabled={disabled || isPending}
-                onChange={() => toggle(f.key)}
-                className="h-5 w-5 rounded border-outline-variant accent-primary disabled:opacity-60"
-              />
-              {f.label}
-            </label>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {AADHAAR_UPDATE_FIELDS.map((f) => {
+            const isSelected = selected.includes(f.key);
+            return (
+              <label
+                key={f.key}
+                className={`flex min-h-11 items-start gap-3 rounded-xl border p-3 transition-colors ${
+                  disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                } ${isSelected ? "border-primary bg-primary-container/30" : "border-outline-variant bg-surface-container-lowest"}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  disabled={disabled}
+                  onChange={() => toggle(f.key)}
+                  className="mt-0.5 h-5 w-5 shrink-0 rounded border-outline-variant accent-primary disabled:opacity-60"
+                />
+                <span className="min-w-0">
+                  <span className="block text-body-md font-medium text-foreground">{f.label}</span>
+                  <span className="block text-label-sm text-on-surface-variant">{FIELD_DESCRIPTIONS[f.key]}</span>
+                </span>
+              </label>
+            );
+          })}
         </div>
       </div>
 
@@ -139,14 +163,16 @@ export function AadhaarUpdateFieldsForm({
             type="text"
             required
             value={otherText}
-            disabled={disabled || isPending}
-            onChange={(e) => setOtherText(e.target.value)}
-            onBlur={commitOtherText}
+            disabled={disabled}
+            onChange={(e) => {
+              setOtherText(e.target.value);
+              markDirty();
+            }}
             placeholder="What else do you want to update?"
             className="w-full min-h-11 rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground disabled:opacity-60"
           />
           {!disabled && !otherText.trim() ? (
-            <p className="text-label-sm text-error">Required before you can submit your application.</p>
+            <p className="text-label-sm text-error">Required before you can save.</p>
           ) : null}
         </div>
       ) : null}
@@ -156,42 +182,52 @@ export function AadhaarUpdateFieldsForm({
           <p className="text-body-md font-medium text-foreground">
             Is a mobile number already registered with your Aadhaar?
           </p>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {MOBILE_REGISTERED_OPTIONS.map((opt) => {
-              const charge = chargeFor(opt.value);
+              const flag = opt.value === "no" ? "mobile_not_registered" : opt.value === "registered_other" ? "mobile_registered_other" : null;
+              const charge = flag ? extraCharges.find((c) => c.condition_key === flag) : undefined;
+              const isChosen = mobileRegistered === opt.value;
               return (
-                <div key={opt.value}>
-                  <label className="flex min-h-11 items-center gap-3 rounded-lg px-1 py-1.5 text-body-md text-foreground">
+                <label
+                  key={opt.value}
+                  className={`block rounded-xl border p-3 transition-colors ${
+                    disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                  } ${isChosen ? "border-primary bg-primary-container/30" : "border-outline-variant bg-surface-container-lowest"}`}
+                >
+                  <span className="flex min-h-11 items-center gap-3">
                     <input
                       type="radio"
                       name="mobile_registered"
-                      checked={mobileRegistered === opt.value}
-                      disabled={disabled || isPending}
-                      onChange={() => chooseMobileRegistered(opt.value)}
-                      className="h-5 w-5 border-outline-variant accent-primary disabled:opacity-60"
+                      checked={isChosen}
+                      disabled={disabled}
+                      onChange={() => {
+                        setMobileRegistered(opt.value);
+                        markDirty();
+                      }}
+                      className="h-5 w-5 shrink-0 border-outline-variant accent-primary disabled:opacity-60"
                     />
-                    <span>{opt.label}</span>
+                    <span className="text-body-md text-foreground">{opt.label}</span>
                     {charge ? (
                       <span className="ml-auto text-label-sm text-on-surface-variant whitespace-nowrap">
                         +₹{charge.amount}
                       </span>
                     ) : null}
-                  </label>
-                  {mobileRegistered === opt.value && opt.info ? (
-                    <div className="ml-8 mt-1 space-y-0.5 rounded-lg bg-surface-container-lowest p-2">
+                  </span>
+                  {isChosen && opt.info ? (
+                    <span className="mt-1 block space-y-0.5 rounded-lg bg-surface-container-lowest p-2">
                       {opt.info.map((line) => (
-                        <p key={line} className="text-label-sm text-on-surface-variant">
+                        <span key={line} className="block text-label-sm text-on-surface-variant">
                           {line}
-                        </p>
+                        </span>
                       ))}
                       {charge ? (
-                        <p className="text-label-sm text-foreground font-medium">
+                        <span className="block text-label-sm font-medium text-foreground">
                           Additional charge: ₹{charge.amount} ({charge.label})
-                        </p>
+                        </span>
                       ) : null}
-                    </div>
+                    </span>
                   ) : null}
-                </div>
+                </label>
               );
             })}
           </div>
@@ -202,7 +238,7 @@ export function AadhaarUpdateFieldsForm({
         <div>
           <p className="text-body-md font-medium text-foreground">How can we reach you?</p>
           <p className="text-label-sm text-on-surface-variant">
-            We may use this number to contact you about your application.
+            We&rsquo;ll use this number for application and appointment updates.
           </p>
         </div>
         <div className="space-y-1">
@@ -213,9 +249,11 @@ export function AadhaarUpdateFieldsForm({
             type="tel"
             required
             value={contactMobile}
-            disabled={disabled || isPending}
-            onChange={(e) => setContactMobile(e.target.value)}
-            onBlur={commitContactInfo}
+            disabled={disabled}
+            onChange={(e) => {
+              setContactMobile(e.target.value);
+              markDirty();
+            }}
             placeholder="10-digit mobile number"
             className="w-full min-h-11 rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground disabled:opacity-60"
           />
@@ -225,9 +263,11 @@ export function AadhaarUpdateFieldsForm({
           <input
             type="tel"
             value={contactAltMobile}
-            disabled={disabled || isPending}
-            onChange={(e) => setContactAltMobile(e.target.value)}
-            onBlur={commitContactInfo}
+            disabled={disabled}
+            onChange={(e) => {
+              setContactAltMobile(e.target.value);
+              markDirty();
+            }}
             className="w-full min-h-11 rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground disabled:opacity-60"
           />
         </div>
@@ -236,19 +276,56 @@ export function AadhaarUpdateFieldsForm({
           <input
             type="email"
             value={contactEmail}
-            disabled={disabled || isPending}
-            onChange={(e) => setContactEmail(e.target.value)}
-            onBlur={commitContactInfo}
+            disabled={disabled}
+            onChange={(e) => {
+              setContactEmail(e.target.value);
+              markDirty();
+            }}
             className="w-full min-h-11 rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground disabled:opacity-60"
           />
         </div>
       </div>
 
-      {error ? <p className="text-label-sm text-error">{error}</p> : null}
-      {disabled ? (
-        <p className="text-label-sm text-on-surface-variant">
-          This can only be changed while the application is still a draft.
-        </p>
+      {selected.length > 0 || preview.extras.length > 0 ? (
+        <div className="space-y-1 rounded-xl bg-surface-container-lowest p-3">
+          <div className="flex items-center justify-between text-body-md">
+            <span className="text-on-surface-variant">Base service</span>
+            <span className="text-foreground">₹{preview.base}</span>
+          </div>
+          {preview.extras.map((extra) => (
+            <div key={extra.label} className="flex items-center justify-between text-body-md text-on-surface-variant">
+              <span>{extra.label}</span>
+              <span>₹{extra.amount}</span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between border-t border-outline-variant pt-1.5 mt-1">
+            <span className="text-body-md font-semibold text-foreground">Current total</span>
+            <span className="text-headline-md font-semibold text-foreground">₹{preview.total}</span>
+          </div>
+          {neededDocs.length > 0 ? (
+            <p className="text-label-sm text-on-surface-variant pt-1">
+              Documents needed: {neededDocs.map((d) => d.name).join(", ")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!disabled ? (
+        <div className="sticky bottom-20 md:static z-10 -mx-1 rounded-xl bg-surface-container-low/95 px-1 py-1 backdrop-blur md:mx-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none">
+          {error ? (
+            <p role="alert" className="mb-2 text-label-sm text-error">
+              {error}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={saveAndContinue}
+            disabled={isPending}
+            className="flex w-full md:w-auto min-h-11 items-center justify-center rounded-lg bg-primary px-6 text-label-lg font-medium text-on-primary disabled:opacity-60"
+          >
+            {isPending ? "Saving…" : saveState === "error" ? "Try again" : saveState === "saved" && !dirty ? "Saved ✓ Continue" : "Save & continue"}
+          </button>
+        </div>
       ) : null}
     </div>
   );

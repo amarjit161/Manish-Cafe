@@ -77,6 +77,12 @@ export default async function CustomerApplicationDetailPage({
     currentlyRequired: isDocumentRequired(rd.condition_key, rd.is_mandatory, answers),
     current: groupedDocs.get(rd.document_type_id)?.current,
   }));
+  const aadhaarDocRequirements = requiredDocs.map((rd) => ({
+    typeId: rd.document_type_id,
+    name: rd.document_types?.name ?? "Document",
+    conditionKey: rd.condition_key,
+    isMandatory: rd.is_mandatory,
+  }));
 
   const progress = getApplicationProgress({
     applicationStatus: application.status,
@@ -139,12 +145,14 @@ export default async function CustomerApplicationDetailPage({
               initialContactMobile={contactMobile}
               initialContactAltMobile={contactAltMobile}
               initialContactEmail={contactEmail}
+              basePrice={application.customer_price_snapshot}
               extraCharges={extraCharges}
+              requiredDocs={aadhaarDocRequirements}
               disabled={!isDraft}
             />
           ) : null}
 
-          <section className="space-y-2">
+          <section id="documents-section" className="space-y-2 scroll-mt-4">
             <h2 className="text-label-lg text-foreground">Your documents</h2>
             <p className="text-body-md text-on-surface-variant">Based on your answers, you need these documents.</p>
             {requiredDocRows.length === 0 ? (

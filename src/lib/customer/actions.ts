@@ -62,6 +62,35 @@ export async function createApplication(
 const NON_CURRENT_DOCUMENT_STATUSES = ["rejected", "reupload_required", "deleted"];
 
 /**
+ * Shared between updateApplicationAnswers (so "Save & continue" catches
+ * these before the customer even reaches the documents/review sections)
+ * and submitApplication (the final, unbypassable gate). update_fields is
+ * only ever populated by the guided update-fields flow (currently just
+ * Aadhaar) -- every check here is a no-op for any other service, exactly
+ * like the pre-existing "other" check was before this was factored out.
+ */
+function validateUpdateFieldsAnswers(answers: Record<string, unknown>): string | null {
+  const updateFields = Array.isArray(answers.update_fields) ? (answers.update_fields as unknown[]) : [];
+  if (updateFields.length === 0) return null;
+
+  const otherText = typeof answers.other_text === "string" ? answers.other_text.trim() : "";
+  if (updateFields.includes("other") && !otherText) {
+    return "Please tell us what else you'd like to update, or unselect \"Other\".";
+  }
+
+  if (updateFields.includes("mobile") && !answers.mobile_registered) {
+    return "Please answer whether a mobile number is already registered with your Aadhaar.";
+  }
+
+  const contactMobile = typeof answers.contact_mobile === "string" ? answers.contact_mobile.trim() : "";
+  if (!contactMobile) {
+    return "Please add a mobile number so we can contact you about your application.";
+  }
+
+  return null;
+}
+
+/**
  * The only path that ever changes an application's status (enforced by
  * the prevent_direct_status_change DB trigger). change_application_status()
  * independently verifies the caller owns this application before doing
@@ -84,7 +113,7 @@ export async function submitApplication(
 
   const { data: application } = await supabase
     .from("applications")
-    .select("service_id, answers")
+    .select("service_id, answers, services(slug)")
     .eq("id", applicationId)
     .maybeSingle();
   if (!application) {
@@ -92,21 +121,15 @@ export async function submitApplication(
   }
 
   const answers = (application.answers ?? {}) as Record<string, unknown>;
-
   const updateFields = Array.isArray(answers.update_fields) ? (answers.update_fields as unknown[]) : [];
-  const otherText = typeof answers.other_text === "string" ? answers.other_text.trim() : "";
-  if (updateFields.includes("other") && !otherText) {
-    return { error: "Please tell us what else you'd like to update, or unselect \"Other\"." };
+
+  if (application.services?.slug === "aadhaar-card-update" && updateFields.length === 0) {
+    return { error: "Please choose at least one thing to update." };
   }
 
-  // update_fields is only ever populated by the guided update-fields flow
-  // (currently just Aadhaar) -- gating on it, rather than a service slug,
-  // keeps this generic across whichever services adopt that same flow,
-  // and is a no-op for every other service exactly like the "other" check
-  // above.
-  const contactMobile = typeof answers.contact_mobile === "string" ? answers.contact_mobile.trim() : "";
-  if (updateFields.length > 0 && !contactMobile) {
-    return { error: "Please add a mobile number so we can contact you about your application." };
+  const validationError = validateUpdateFieldsAnswers(answers);
+  if (validationError) {
+    return { error: validationError };
   }
 
   const [{ data: requirements }, { data: documents }] = await Promise.all([
@@ -195,6 +218,14 @@ export async function updateApplicationAnswers(
   if (params.contactMobile?.trim()) answers.contact_mobile = params.contactMobile.trim();
   if (params.contactAltMobile?.trim()) answers.contact_alt_mobile = params.contactAltMobile.trim();
   if (params.contactEmail?.trim()) answers.contact_email = params.contactEmail.trim();
+
+  // Validated here too (not just at final submit) so "Save & continue"
+  // catches these immediately -- the customer shouldn't reach the
+  // documents/review sections only to be sent back for a missing answer.
+  const validationError = validateUpdateFieldsAnswers(answers);
+  if (validationError) {
+    return { error: validationError };
+  }
 
   const { error } = await supabase.from("applications").update({ answers }).eq("id", applicationId);
 
