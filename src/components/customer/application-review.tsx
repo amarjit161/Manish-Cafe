@@ -37,6 +37,7 @@ export function ApplicationReview({
 }) {
   const breakdown = computePriceBreakdown({ basePrice, answers, extraCharges });
   const requestedUpdates = showRequestedUpdates ? formatRequestedUpdates(answers) : [];
+  const contactMobile = typeof answers.contact_mobile === "string" ? answers.contact_mobile : "";
   const activeDocs = requiredDocs.filter((d) => d.currentlyRequired);
   const allUploaded = activeDocs.length > 0 && activeDocs.every((d) => d.uploaded);
 
@@ -74,6 +75,13 @@ export function ApplicationReview({
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+
+      {contactMobile ? (
+        <div className="space-y-1">
+          <p className="text-label-sm font-medium text-on-surface-variant">How we&rsquo;ll reach you</p>
+          <p className="text-body-md text-foreground">{contactMobile}</p>
         </div>
       ) : null}
 

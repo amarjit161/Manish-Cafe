@@ -26,6 +26,9 @@ export function AadhaarUpdateFieldsForm({
   initialFields,
   initialOtherText,
   initialMobileRegistered,
+  initialContactMobile,
+  initialContactAltMobile,
+  initialContactEmail,
   extraCharges,
   disabled,
 }: {
@@ -33,6 +36,9 @@ export function AadhaarUpdateFieldsForm({
   initialFields: string[];
   initialOtherText: string;
   initialMobileRegistered: MobileRegisteredAnswer | null;
+  initialContactMobile: string;
+  initialContactAltMobile: string;
+  initialContactEmail: string;
   extraCharges: ExtraCharge[];
   disabled: boolean;
 }) {
@@ -40,15 +46,28 @@ export function AadhaarUpdateFieldsForm({
   const [selected, setSelected] = useState<string[]>(initialFields);
   const [otherText, setOtherText] = useState(initialOtherText);
   const [mobileRegistered, setMobileRegistered] = useState<MobileRegisteredAnswer | null>(initialMobileRegistered);
+  const [contactMobile, setContactMobile] = useState(initialContactMobile);
+  const [contactAltMobile, setContactAltMobile] = useState(initialContactAltMobile);
+  const [contactEmail, setContactEmail] = useState(initialContactEmail);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function save(next: { updateFields: string[]; otherText: string; mobileRegistered: MobileRegisteredAnswer | null }) {
+  function save(next: {
+    updateFields: string[];
+    otherText: string;
+    mobileRegistered: MobileRegisteredAnswer | null;
+    contactMobile: string;
+    contactAltMobile: string;
+    contactEmail: string;
+  }) {
     startTransition(async () => {
       const result = await updateApplicationAnswers(applicationId, {
         updateFields: next.updateFields,
         otherText: next.otherText,
         mobileRegistered: next.mobileRegistered ?? undefined,
+        contactMobile: next.contactMobile,
+        contactAltMobile: next.contactAltMobile,
+        contactEmail: next.contactEmail,
       });
       if (result?.error) {
         setError(result.error);
@@ -63,18 +82,23 @@ export function AadhaarUpdateFieldsForm({
     if (disabled || isPending) return;
     const next = selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key];
     setSelected(next);
-    save({ updateFields: next, otherText, mobileRegistered });
+    save({ updateFields: next, otherText, mobileRegistered, contactMobile, contactAltMobile, contactEmail });
   }
 
   function commitOtherText() {
     if (disabled || isPending) return;
-    save({ updateFields: selected, otherText, mobileRegistered });
+    save({ updateFields: selected, otherText, mobileRegistered, contactMobile, contactAltMobile, contactEmail });
   }
 
   function chooseMobileRegistered(value: MobileRegisteredAnswer) {
     if (disabled || isPending) return;
     setMobileRegistered(value);
-    save({ updateFields: selected, otherText, mobileRegistered: value });
+    save({ updateFields: selected, otherText, mobileRegistered: value, contactMobile, contactAltMobile, contactEmail });
+  }
+
+  function commitContactInfo() {
+    if (disabled || isPending) return;
+    save({ updateFields: selected, otherText, mobileRegistered, contactMobile, contactAltMobile, contactEmail });
   }
 
   function chargeFor(value: MobileRegisteredAnswer): ExtraCharge | undefined {
@@ -173,6 +197,52 @@ export function AadhaarUpdateFieldsForm({
           </div>
         </div>
       ) : null}
+
+      <div className="space-y-3 border-t border-outline-variant pt-3">
+        <div>
+          <p className="text-body-md font-medium text-foreground">How can we reach you?</p>
+          <p className="text-label-sm text-on-surface-variant">
+            We may use this number to contact you about your application.
+          </p>
+        </div>
+        <div className="space-y-1">
+          <label className="text-label-sm text-on-surface-variant">
+            Mobile number <span className="text-error">*</span>
+          </label>
+          <input
+            type="tel"
+            required
+            value={contactMobile}
+            disabled={disabled || isPending}
+            onChange={(e) => setContactMobile(e.target.value)}
+            onBlur={commitContactInfo}
+            placeholder="10-digit mobile number"
+            className="w-full min-h-11 rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground disabled:opacity-60"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-label-sm text-on-surface-variant">Alternative mobile number (optional)</label>
+          <input
+            type="tel"
+            value={contactAltMobile}
+            disabled={disabled || isPending}
+            onChange={(e) => setContactAltMobile(e.target.value)}
+            onBlur={commitContactInfo}
+            className="w-full min-h-11 rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground disabled:opacity-60"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-label-sm text-on-surface-variant">Email (optional)</label>
+          <input
+            type="email"
+            value={contactEmail}
+            disabled={disabled || isPending}
+            onChange={(e) => setContactEmail(e.target.value)}
+            onBlur={commitContactInfo}
+            className="w-full min-h-11 rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-body-md text-foreground disabled:opacity-60"
+          />
+        </div>
+      </div>
 
       {error ? <p className="text-label-sm text-error">{error}</p> : null}
       {disabled ? (

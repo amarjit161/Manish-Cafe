@@ -27,6 +27,8 @@ export default async function AdminApplicationDetailPage({
 
   const answers = (application.answers ?? {}) as Record<string, unknown>;
   const requestedUpdates = formatRequestedUpdates(answers);
+  const contactMobile = typeof answers.contact_mobile === "string" ? answers.contact_mobile : "";
+  const contactAltMobile = typeof answers.contact_alt_mobile === "string" ? answers.contact_alt_mobile : "";
   const progress = getApplicationProgress({
     applicationStatus: application.status,
     currentRequiredDocuments: requiredDocs
@@ -77,6 +79,16 @@ export default async function AdminApplicationDetailPage({
         <div className="rounded-2xl bg-surface-container-low p-4">
           <p className="text-label-lg text-foreground">Requested updates</p>
           <p className="text-body-md text-foreground mt-1">{requestedUpdates.join(", ")}</p>
+        </div>
+      ) : null}
+
+      {contactMobile ? (
+        <div className="rounded-2xl bg-surface-container-low p-4">
+          <p className="text-label-lg text-foreground">Contact</p>
+          <p className="text-body-md text-foreground mt-1">{contactMobile}</p>
+          {contactAltMobile ? (
+            <p className="text-body-md text-on-surface-variant">Alternative: {contactAltMobile}</p>
+          ) : null}
         </div>
       ) : null}
 

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getApplicationDetail } from "@/lib/customer/queries";
+import { getApplicationDetail, getMyCustomer } from "@/lib/customer/queries";
 import { ApplicationStageBadge } from "@/components/customer/status-badge";
 import { DocumentReviewCard } from "@/components/customer/document-review-card";
 import { AadhaarUpdateFieldsForm } from "@/components/customer/aadhaar-update-fields-form";
@@ -31,7 +31,7 @@ export default async function CustomerApplicationDetailPage({
 }) {
   const { id } = await params;
   const { submitted } = await searchParams;
-  const result = await getApplicationDetail(id);
+  const [result, customer] = await Promise.all([getApplicationDetail(id), getMyCustomer()]);
   if (!result) notFound();
 
   const { application, requiredDocs, documents, history, messages, extraCharges } = result;
@@ -63,6 +63,9 @@ export default async function CustomerApplicationDetailPage({
   const updateFields = Array.isArray(answers.update_fields) ? (answers.update_fields as string[]) : [];
   const otherText = typeof answers.other_text === "string" ? answers.other_text : "";
   const mobileRegistered = (answers.mobile_registered as MobileRegisteredAnswer | undefined) ?? null;
+  const contactMobile = typeof answers.contact_mobile === "string" ? answers.contact_mobile : (customer?.phone ?? "");
+  const contactAltMobile = typeof answers.contact_alt_mobile === "string" ? answers.contact_alt_mobile : "";
+  const contactEmail = typeof answers.contact_email === "string" ? answers.contact_email : (customer?.email ?? "");
   const canUpload = UPLOADABLE_STATUSES.has(application.status);
   const isDraft = application.status === "draft";
   const isAadhaarUpdate = application.services?.slug === "aadhaar-card-update";
@@ -133,6 +136,9 @@ export default async function CustomerApplicationDetailPage({
               initialFields={updateFields}
               initialOtherText={otherText}
               initialMobileRegistered={mobileRegistered}
+              initialContactMobile={contactMobile}
+              initialContactAltMobile={contactAltMobile}
+              initialContactEmail={contactEmail}
               extraCharges={extraCharges}
               disabled={!isDraft}
             />

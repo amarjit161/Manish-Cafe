@@ -99,6 +99,16 @@ export async function submitApplication(
     return { error: "Please tell us what else you'd like to update, or unselect \"Other\"." };
   }
 
+  // update_fields is only ever populated by the guided update-fields flow
+  // (currently just Aadhaar) -- gating on it, rather than a service slug,
+  // keeps this generic across whichever services adopt that same flow,
+  // and is a no-op for every other service exactly like the "other" check
+  // above.
+  const contactMobile = typeof answers.contact_mobile === "string" ? answers.contact_mobile.trim() : "";
+  if (updateFields.length > 0 && !contactMobile) {
+    return { error: "Please add a mobile number so we can contact you about your application." };
+  }
+
   const [{ data: requirements }, { data: documents }] = await Promise.all([
     supabase
       .from("service_document_types")
@@ -163,7 +173,14 @@ export async function submitApplication(
  */
 export async function updateApplicationAnswers(
   applicationId: string,
-  params: { updateFields: string[]; otherText?: string; mobileRegistered?: MobileRegisteredAnswer },
+  params: {
+    updateFields: string[];
+    otherText?: string;
+    mobileRegistered?: MobileRegisteredAnswer;
+    contactMobile?: string;
+    contactAltMobile?: string;
+    contactEmail?: string;
+  },
 ): Promise<ActionState> {
   const supabase = await createClient();
 
@@ -175,6 +192,9 @@ export async function updateApplicationAnswers(
     answers.mobile_registered = params.mobileRegistered;
     answers.flags = deriveAnswerFlags({ mobile_registered: params.mobileRegistered });
   }
+  if (params.contactMobile?.trim()) answers.contact_mobile = params.contactMobile.trim();
+  if (params.contactAltMobile?.trim()) answers.contact_alt_mobile = params.contactAltMobile.trim();
+  if (params.contactEmail?.trim()) answers.contact_email = params.contactEmail.trim();
 
   const { error } = await supabase.from("applications").update({ answers }).eq("id", applicationId);
 

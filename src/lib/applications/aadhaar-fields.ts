@@ -7,11 +7,14 @@
  */
 export const AADHAAR_UPDATE_FIELDS = [
   { key: "name", label: "Name" },
+  { key: "father_name", label: "Father's Name" },
+  { key: "mother_name", label: "Mother's Name" },
+  { key: "spouse_name", label: "Husband/Wife Name" },
   { key: "dob", label: "Date of Birth" },
   { key: "gender", label: "Gender" },
-  { key: "address", label: "Address" },
   { key: "mobile", label: "Mobile Number" },
   { key: "email", label: "Email" },
+  { key: "address", label: "Address" },
   { key: "other", label: "Other" },
 ] as const;
 
