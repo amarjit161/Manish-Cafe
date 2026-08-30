@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
   if (params.get("dateFrom")) filters.dateFrom = params.get("dateFrom")!;
   if (params.get("dateTo")) filters.dateTo = params.get("dateTo")!;
   if (params.get("status")) filters.status = params.get("status")!;
+  if (params.get("service")) filters.serviceId = params.get("service")!;
   if (params.get("mobile")) filters.mobileRegistered = params.get("mobile") as "yes" | "no" | "unknown" | "registered_other";
   if (params.get("q")) filters.search = params.get("q")!;
 

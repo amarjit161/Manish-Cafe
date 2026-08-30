@@ -398,6 +398,7 @@ export type AdminAppointmentFilters = {
   dateFrom?: string;
   dateTo?: string;
   status?: string;
+  serviceId?: string;
   mobileRegistered?: "yes" | "no" | "unknown" | "registered_other";
   search?: string;
 };
@@ -424,6 +425,7 @@ export async function getAdminAppointments(filters: AdminAppointmentFilters = {}
   if (filters.dateFrom) query = query.gte("appointment_date", filters.dateFrom);
   if (filters.dateTo) query = query.lte("appointment_date", filters.dateTo);
   if (filters.status) query = query.eq("status", filters.status as "booked" | "completed" | "cancelled" | "no_show");
+  if (filters.serviceId) query = query.eq("service_id", filters.serviceId);
 
   const { data, error } = await query;
   if (error) throw error;
