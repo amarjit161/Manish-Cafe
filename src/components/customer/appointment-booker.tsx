@@ -3,7 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAppointmentAvailability, bookAppointment, rescheduleAppointment } from "@/lib/customer/actions";
-import { formatSlotTime, formatAppointmentDateShort } from "@/lib/applications/appointments";
+import { formatSlotTime, formatAppointmentDate } from "@/lib/applications/appointments";
+import { SITE_NAME } from "@/lib/site-data";
 
 type Availability = { slot_template_id: string; start_time: string; end_time: string; capacity: number; booked_count: number; remaining: number };
 
@@ -140,6 +141,16 @@ export function AppointmentBooker({
             ? "Pick a new date and time. Your contact details stay the same."
             : "Select a day and time that works for you -- we'll confirm it instantly."}
         </p>
+        {/* Manish Cafe is a single physical location -- shown as plain
+            real-name context, never a selector, since there is nothing to
+            choose between and no street address exists anywhere in this
+            app to show alongside it. */}
+        <p className="flex items-center gap-1 text-label-sm text-on-surface-variant mt-1.5">
+          <span className="material-symbols-outlined text-[15px]" aria-hidden="true">
+            location_on
+          </span>
+          {SITE_NAME}
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -246,11 +257,16 @@ export function AppointmentBooker({
 
       {selectedSlotId ? (
         <div className="space-y-4 border-t border-outline-variant pt-4">
-          <div className="flex items-center justify-between rounded-xl bg-primary-container/15 px-3 py-2.5">
-            <span className="text-label-sm text-on-surface-variant">Selected</span>
-            <span className="text-body-md font-semibold text-foreground">
-              {formatAppointmentDateShort(selectedDate)}, {selectedSlot ? formatSlotTime(selectedSlot.start_time) : ""}
-            </span>
+          <div className="rounded-xl bg-primary-container/15 p-3 space-y-1.5">
+            <p className="text-label-sm font-medium text-on-surface-variant">Review your appointment</p>
+            <div className="flex items-center justify-between text-body-md">
+              <span className="text-on-surface-variant">Date</span>
+              <span className="font-semibold text-foreground">{formatAppointmentDate(selectedDate)}</span>
+            </div>
+            <div className="flex items-center justify-between text-body-md">
+              <span className="text-on-surface-variant">Time</span>
+              <span className="font-semibold text-foreground">{selectedSlot ? formatSlotTime(selectedSlot.start_time) : ""}</span>
+            </div>
           </div>
 
           {!reschedule ? (

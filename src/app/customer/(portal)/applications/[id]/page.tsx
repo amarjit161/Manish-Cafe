@@ -21,6 +21,7 @@ import { computePriceBreakdown } from "@/lib/applications/pricing";
 import { groupDocumentsByType } from "@/lib/applications/documents";
 import { buildApplicationTimeline } from "@/lib/applications/timeline";
 import { formatDate } from "@/lib/format";
+import { SITE_NAME } from "@/lib/site-data";
 import type { MobileRegisteredAnswer } from "@/lib/applications/aadhaar-fields";
 
 const UPLOADABLE_STATUSES = new Set(["draft", "submitted", "documents_required"]);
@@ -72,7 +73,7 @@ export default async function CustomerApplicationDetailPage({
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary text-label-sm font-semibold mt-0.5">
                   2
                 </span>
-                Book a short appointment at Manish Cafe &amp; Cyber Zone.
+                Book a short appointment at {SITE_NAME}.
               </li>
             ) : null}
             <li className="flex items-start gap-2 text-body-md text-foreground">
@@ -279,7 +280,7 @@ export default async function CustomerApplicationDetailPage({
                     Appointment required
                   </p>
                   <p className="text-body-md text-on-surface-variant">
-                    This service needs a short visit to Manish Cafe &amp; Cyber Zone.
+                    This service needs a short in-person visit to complete.
                   </p>
                   <AppointmentBooker
                     applicationId={application.id}

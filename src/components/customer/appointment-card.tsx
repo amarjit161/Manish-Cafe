@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { cancelAppointment } from "@/lib/customer/actions";
 import { AppointmentBooker } from "@/components/customer/appointment-booker";
 import { formatAppointmentDate, formatSlotTime, APPOINTMENT_STATUS_CHIP, type AppointmentStatus } from "@/lib/applications/appointments";
+import { SITE_NAME } from "@/lib/site-data";
 
 type Appointment = {
   id: string;
@@ -74,7 +75,7 @@ export function AppointmentCard({ appointment, requiredDocNames }: { appointment
       </div>
 
       <div className="space-y-0.5">
-        <p className="text-body-md text-on-surface-variant">Manish Cafe &amp; Cyber Zone</p>
+        <p className="text-body-md text-on-surface-variant">{SITE_NAME}</p>
         <p className="text-label-sm text-on-surface-variant">Please arrive a few minutes before your appointment.</p>
         {requiredDocNames.length > 0 ? (
           <p className="text-label-sm text-on-surface-variant">What to bring: {requiredDocNames.join(", ")}</p>
