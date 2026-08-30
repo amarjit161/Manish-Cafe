@@ -98,6 +98,27 @@ export const STAGE_TONES: Record<ApplicationStage, "success" | "warning" | "info
  * the customer's attention after submission -- that's a real, separate
  * lifecycle worth its own row, not a redundant one.
  */
+type AppointmentLike = { status: string } | null | undefined;
+
+/**
+ * Shared urgency ordering for any surface that lists more than one
+ * application (customer applications list, dashboard preview) -- so the
+ * two never quietly drift into showing applications in a different order.
+ * Action-required beats everything else regardless of raw status -- a
+ * customer whose submitted application needs a re-upload should see it
+ * before an untouched draft. An upcoming (still-booked) appointment beats
+ * an untouched draft too, since there's a real date to prepare for.
+ * Terminal/completed applications sink to the bottom since there's
+ * nothing left to do with them.
+ */
+export function applicationPriorityRank(progress: ApplicationProgress, appointment: AppointmentLike): number {
+  if (progress.actionRequired.length > 0) return 0;
+  if (appointment?.status === "booked") return 1;
+  if (progress.stage === "draft") return 2;
+  if (progress.terminal) return 4;
+  return 3;
+}
+
 export function getApplicationProgress(params: {
   applicationStatus: string;
   currentRequiredDocuments: {

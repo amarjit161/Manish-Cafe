@@ -2,25 +2,7 @@ import Link from "next/link";
 import { getMyApplicationsWithProgress } from "@/lib/customer/queries";
 import { ApplicationSummaryCard } from "@/components/customer/application-summary-card";
 import { EmptyState } from "@/components/customer/empty-state";
-import type { ApplicationProgress } from "@/lib/applications/progress";
-
-type AppointmentLike = { status: string } | null;
-
-/**
- * Action-required beats everything else regardless of raw status -- a
- * customer whose submitted application needs a re-upload should see it
- * before an untouched draft. An upcoming (still-booked) appointment beats
- * an untouched draft too, since there's a real date to prepare for.
- * Terminal/completed applications sink to the bottom since there's
- * nothing left to do with them.
- */
-function priorityRank(progress: ApplicationProgress, appointment: AppointmentLike): number {
-  if (progress.actionRequired.length > 0) return 0;
-  if (appointment?.status === "booked") return 1;
-  if (progress.stage === "draft") return 2;
-  if (progress.terminal) return 4;
-  return 3;
-}
+import { applicationPriorityRank } from "@/lib/applications/progress";
 
 export default async function CustomerApplicationsPage({
   searchParams,
@@ -30,7 +12,7 @@ export default async function CustomerApplicationsPage({
   const { deleted } = await searchParams;
   const applications = await getMyApplicationsWithProgress();
   const sorted = [...applications].sort(
-    (a, b) => priorityRank(a.progress, a.appointment) - priorityRank(b.progress, b.appointment),
+    (a, b) => applicationPriorityRank(a.progress, a.appointment) - applicationPriorityRank(b.progress, b.appointment),
   );
 
   return (

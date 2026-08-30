@@ -2,9 +2,25 @@ import Link from "next/link";
 import { getCurrentUserProfile } from "@/lib/auth/session";
 import { getMyApplicationsWithProgress, getActiveServices, getUpcomingAppointment } from "@/lib/customer/queries";
 import { ApplicationSummaryCard } from "@/components/customer/application-summary-card";
+import { ActionRequiredCard } from "@/components/customer/action-required-card";
+import { UpcomingAppointmentCard } from "@/components/customer/upcoming-appointment-card";
+import { ServiceQuickCard } from "@/components/customer/service-quick-card";
 import { EmptyState } from "@/components/customer/empty-state";
 import { getTimeOfDayGreeting } from "@/lib/format";
-import { formatAppointmentDate, formatSlotTime } from "@/lib/applications/appointments";
+import { applicationPriorityRank } from "@/lib/applications/progress";
+
+const PRIMARY_ACTIONS = [
+  {
+    href: "/customer/services",
+    label: "Apply for a Service",
+    icon: "add_circle",
+  },
+  {
+    href: "/customer/applications",
+    label: "My Applications",
+    icon: "assignment",
+  },
+] as const;
 
 export default async function CustomerDashboardPage() {
   const [profile, applications, services, upcomingAppointment] = await Promise.all([
@@ -20,84 +36,74 @@ export default async function CustomerDashboardPage() {
   // The single highest-priority thing on the page, per the "what needs my
   // attention right now" ordering -- an application needing action beats
   // everything else. Only the most recent one surfaces here; the full list
-  // (including any others needing action) lives in "Your applications"
+  // (including any others needing action) lives in "Recent applications"
   // below, so this never duplicates that section's own status logic.
   const needsAction = applications.find(({ progress }) => progress.actionRequired.length > 0);
 
+  const recentApplications = [...applications]
+    .sort((a, b) => applicationPriorityRank(a.progress, a.appointment) - applicationPriorityRank(b.progress, b.appointment))
+    .slice(0, 4);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* 1. Greeting */}
       <div>
-        <h1 className="text-headline-md text-foreground">
+        <h1 className="text-headline-md md:text-headline-lg text-foreground font-bold">
           {greeting}
           {firstName ? `, ${firstName}` : ""} 👋
         </h1>
-        <p className="text-body-md text-on-surface-variant mt-1">What would you like to do today?</p>
+        <p className="text-body-md text-on-surface-variant mt-1">
+          Here&rsquo;s what&rsquo;s happening with your applications today.
+        </p>
       </div>
 
+      {/* 2. Action required */}
       {needsAction ? (
-        <Link
-          href={`/customer/applications/${needsAction.application.application_number ?? needsAction.application.id}`}
-          className="block rounded-2xl border border-error bg-error-container/30 p-4 space-y-2"
-        >
-          <p className="text-label-lg font-semibold text-error">🔴 Action needed</p>
-          <p className="text-body-md text-foreground">
-            Your {needsAction.progress.actionRequired[0].documentTypeName} needs to be uploaded again.
-          </p>
-          <span className="inline-block text-label-sm font-medium text-primary">Fix this →</span>
-        </Link>
-      ) : upcomingAppointment ? (
-        <Link
-          href={`/customer/applications/${upcomingAppointment.applications?.application_number ?? upcomingAppointment.application_id}`}
-          className="block rounded-2xl bg-primary-container/40 border border-primary/20 p-4 space-y-1"
-        >
-          <p className="text-label-lg font-semibold text-foreground">Your upcoming appointment</p>
-          <p className="text-body-md text-foreground">{upcomingAppointment.applications?.services?.name ?? "Appointment"}</p>
-          <p className="text-body-md text-foreground">
-            {formatAppointmentDate(upcomingAppointment.appointment_date)}
-            {upcomingAppointment.appointment_slot_templates ? ` · ${formatSlotTime(upcomingAppointment.appointment_slot_templates.start_time)}` : ""}
-          </p>
-          <span className="inline-block text-label-sm font-medium text-primary">View appointment →</span>
-        </Link>
-      ) : (
-        <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant p-4">
-          <p className="text-body-md font-medium text-foreground">You&rsquo;re all caught up ✓</p>
-          <p className="text-label-sm text-on-surface-variant mt-0.5">Nothing needs your attention right now.</p>
-        </div>
-      )}
+        <ActionRequiredCard application={needsAction.application} item={needsAction.progress.actionRequired[0]} />
+      ) : null}
 
-      <section className="space-y-2">
-        <h2 className="text-label-lg text-foreground">What would you like to do?</h2>
-        {services.length === 0 ? (
-          <EmptyState message="No services are available right now." />
-        ) : (
-          <div className="space-y-2">
-            {services.slice(0, 3).map((service) => (
-              <Link
-                key={service.id}
-                href={`/customer/services/${service.id}`}
-                className="flex min-h-11 items-start justify-between gap-3 rounded-xl bg-surface-container-lowest border border-outline-variant p-4"
+      {/* 3. Primary actions + quick service actions */}
+      <section className="space-y-3">
+        <h2 className="text-label-lg font-semibold text-foreground">Quick actions</h2>
+        <div className="grid grid-cols-2 gap-3">
+          {PRIMARY_ACTIONS.map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className="flex flex-col gap-2.5 rounded-2xl bg-surface-container-lowest border border-outline-variant p-4 hover:border-primary/40 transition-colors"
+            >
+              <span
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-on-primary"
+                aria-hidden="true"
               >
-                <div className="min-w-0">
-                  <p className="text-body-md text-foreground font-medium">{service.name}</p>
-                  {service.description ? (
-                    <p className="text-label-sm text-on-surface-variant">{service.description}</p>
-                  ) : null}
-                </div>
-                <span className="text-label-sm text-on-surface-variant whitespace-nowrap shrink-0">₹{service.customer_price}</span>
-              </Link>
-            ))}
-          </div>
-        )}
+                <span className="material-symbols-outlined text-[20px]">{action.icon}</span>
+              </span>
+              <span className="text-body-md font-semibold text-foreground">{action.label}</span>
+            </Link>
+          ))}
+        </div>
+
         {services.length > 0 ? (
-          <Link href="/customer/services" className="inline-block text-label-sm text-primary font-medium">
-            Browse all services →
-          </Link>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              {services.slice(0, 4).map((service) => (
+                <ServiceQuickCard key={service.id} service={service} />
+              ))}
+            </div>
+            <Link href="/customer/services" className="inline-block text-label-sm text-primary font-medium">
+              Browse all services →
+            </Link>
+          </>
         ) : null}
       </section>
 
-      <section className="space-y-2">
+      {/* 4. Upcoming appointment */}
+      {upcomingAppointment ? <UpcomingAppointmentCard appointment={upcomingAppointment} /> : null}
+
+      {/* 5. Recent applications */}
+      <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-label-lg text-foreground">Your applications</h2>
+          <h2 className="text-label-lg font-semibold text-foreground">Recent applications</h2>
           {applications.length > 0 ? (
             <Link href="/customer/applications" className="text-label-sm text-primary font-medium">
               View all
@@ -105,10 +111,13 @@ export default async function CustomerDashboardPage() {
           ) : null}
         </div>
         {applications.length === 0 ? (
-          <EmptyState message="No applications yet. Choose a service above to get started." />
+          <EmptyState
+            message="You haven't started an application yet."
+            action={{ label: "Browse services", href: "/customer/services" }}
+          />
         ) : (
-          <div className="space-y-2">
-            {applications.slice(0, 3).map(({ application, progress, appointment }) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {recentApplications.map(({ application, progress, appointment }) => (
               <ApplicationSummaryCard key={application.id} application={application} progress={progress} appointment={appointment} />
             ))}
           </div>
