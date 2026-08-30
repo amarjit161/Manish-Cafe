@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
+import { pickCurrentAppointment } from "@/lib/applications/appointments";
 
 /**
  * All queries here run through the normal RLS-respecting server client
@@ -16,27 +17,6 @@ import type { Database } from "@/lib/supabase/database.types";
 // register's "Needs attention" indicator both import this so they can
 // never silently drift apart into two different definitions.
 export const AWAITING_ADMIN_REVIEW = new Set(["uploaded", "under_review"]);
-
-/**
- * Picks the one appointment to show for an application that embeds
- * `appointments(...)` as a to-many relation: prefer the still-booked row,
- * otherwise the most recent one (cancelled/completed) so a genuinely past
- * appointment isn't silently hidden. Shared by the register list and the
- * detail page so they can never pick differently for the same
- * application. Supabase's generated embed type is "single row | never[]"
- * rather than a plain array, so this normalizes that first regardless of
- * which shape actually comes back.
- */
-function pickCurrentAppointment<T extends { status: string; appointment_date: string }>(
-  raw: T | T[] | null | undefined,
-): T | null {
-  const appointments = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  return (
-    appointments.find((a) => a.status === "booked") ??
-    [...appointments].sort((a, b) => b.appointment_date.localeCompare(a.appointment_date))[0] ??
-    null
-  );
-}
 
 export async function getAdminDashboardStats() {
   const supabase = await createClient();

@@ -279,7 +279,7 @@ export default async function CustomerApplicationDetailPage({
                     Appointment required
                   </p>
                   <p className="text-body-md text-on-surface-variant">
-                    This service needs a short visit to Manish Cafe &amp; Cyber Zone. Choose a time that works for you.
+                    This service needs a short visit to Manish Cafe &amp; Cyber Zone.
                   </p>
                   <AppointmentBooker
                     applicationId={application.id}

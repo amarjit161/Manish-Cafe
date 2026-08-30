@@ -48,3 +48,26 @@ export function todayDateString(): string {
   const now = new Date();
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
+
+/**
+ * Picks the one appointment row a UI should treat as "the" appointment for
+ * an application, given that `appointments.application_id` is NOT unique --
+ * a customer can cancel and rebook, leaving a real history of rows (e.g.
+ * one `cancelled` + one `booked`) for the same application. Prefers the
+ * `booked` row (there can only ever be one at a time, per book_appointment()'s
+ * own check); falls back to the most recent by date otherwise (e.g. every
+ * row is cancelled/completed). Shared by both the admin and customer query
+ * modules so this resolution never drifts between the two portals -- and so
+ * neither ever reaches for `.maybeSingle()` on this table, which errors
+ * outright as soon as a customer has more than one appointment row.
+ */
+export function pickCurrentAppointment<T extends { status: string; appointment_date: string }>(
+  raw: T | T[] | null | undefined,
+): T | null {
+  const appointments = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return (
+    appointments.find((a) => a.status === "booked") ??
+    [...appointments].sort((a, b) => b.appointment_date.localeCompare(a.appointment_date))[0] ??
+    null
+  );
+}

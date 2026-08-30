@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserProfile } from "@/lib/auth/session";
 import { getApplicationProgress } from "@/lib/applications/progress";
 import { isDocumentRequired } from "@/lib/applications/requirements";
+import { pickCurrentAppointment } from "@/lib/applications/appointments";
 import type { Tables } from "@/lib/supabase/database.types";
 
 export type CustomerRow = Tables<"customers">;
@@ -145,7 +146,11 @@ export async function getMyApplicationsWithProgress() {
       }));
 
     const progress = getApplicationProgress({ applicationStatus: app.status, currentRequiredDocuments });
-    const appointment = (allAppointments ?? []).find((a) => a.application_id === app.id) ?? null;
+    // Not `.find()` -- an application can have more than one appointment
+    // row over its lifetime (cancel, then rebook), and picking whichever
+    // happens to come back first could surface a stale cancelled one
+    // instead of the real current booking.
+    const appointment = pickCurrentAppointment((allAppointments ?? []).filter((a) => a.application_id === app.id));
     return { application: app, progress, appointment };
   });
 }
@@ -176,7 +181,7 @@ export async function getApplicationDetail(applicationRef: string) {
   if (error) throw error;
   if (!application) return null;
 
-  const [{ data: requiredDocs }, { data: documents }, { data: history }, { data: messages }, { data: extraCharges }, { data: appointment }] =
+  const [{ data: requiredDocs }, { data: documents }, { data: history }, { data: messages }, { data: extraCharges }, { data: appointments }] =
     await Promise.all([
       supabase
         .from("service_document_types")
@@ -210,13 +215,15 @@ export async function getApplicationDetail(applicationRef: string) {
         .select("condition_key, label, amount, display_order")
         .eq("service_id", application.service_id)
         .order("display_order"),
-      // applications.id is unique on appointments (one appointment per
-      // application), so .maybeSingle() rather than a list.
+      // NOT .maybeSingle() -- application_id is not unique on appointments;
+      // a customer who cancels and rebooks leaves a real history of rows
+      // (e.g. one cancelled + one booked) for the same application, which
+      // .maybeSingle() would error on outright. pickCurrentAppointment()
+      // below picks the still-booked row (or the most recent one) instead.
       supabase
         .from("appointments")
         .select("*, appointment_slot_templates(start_time, end_time)")
-        .eq("application_id", application.id)
-        .maybeSingle(),
+        .eq("application_id", application.id),
     ]);
 
   return {
@@ -226,7 +233,7 @@ export async function getApplicationDetail(applicationRef: string) {
     history: history ?? [],
     messages: messages ?? [],
     extraCharges: extraCharges ?? [],
-    appointment: appointment ?? null,
+    appointment: pickCurrentAppointment(appointments ?? []),
   };
 }
 
