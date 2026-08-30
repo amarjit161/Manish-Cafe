@@ -215,6 +215,184 @@ export async function getApplicationDetailForAdmin(applicationId: string) {
   };
 }
 
+export type ReportRange = "today" | "7d" | "30d" | "90d" | "all";
+
+export const REPORT_RANGE_LABELS: Record<ReportRange, string> = {
+  today: "Today",
+  "7d": "Last 7 days",
+  "30d": "Last 30 days",
+  "90d": "Last 90 days",
+  all: "All time",
+};
+
+/** Inclusive lower bound (ISO datetime) for a report range, or null for "all time". */
+export function reportRangeStart(range: ReportRange): string | null {
+  if (range === "all") return null;
+  const now = new Date();
+  if (range === "today") {
+    now.setHours(0, 0, 0, 0);
+    return now.toISOString();
+  }
+  const days = { "7d": 7, "30d": 30, "90d": 90 }[range];
+  now.setDate(now.getDate() - days);
+  return now.toISOString();
+}
+
+type ReportApplicationRow = {
+  id: string;
+  application_number: string | null;
+  status: Database["public"]["Enums"]["application_status"];
+  service_id: string;
+  services: { name: string | null; slug: string | null } | null;
+  customers: { full_name: string | null; email: string | null } | null;
+  created_at: string;
+  submitted_at: string | null;
+  completed_at: string | null;
+  total_price_snapshot: number | null;
+  customer_price_snapshot: number;
+  answers: unknown;
+};
+
+/**
+ * Everything the admin Reports page shows, computed from real rows only --
+ * no invented revenue, conversion rate, or turnaround-time figure. Two
+ * different time bases are used deliberately:
+ *  - The KPIs/breakdowns/volume chart are scoped to applications *created*
+ *    within the selected range (and appointments *scheduled* within it) --
+ *    this is what "Last 30 days" means on any reporting dashboard.
+ *  - The "Pending operational metrics" table is a live snapshot of the
+ *    admin's current queue (documents awaiting review, awaiting a customer
+ *    re-upload, Aadhaar applications with an unregistered mobile) -- these
+ *    describe work sitting right now, not history, so they intentionally
+ *    ignore the date range the same way the main dashboard's KPIs do.
+ * "Total value" sums the real per-application price snapshot -- it is
+ * explicitly NOT labelled "Revenue", since no payment/transaction table
+ * exists to confirm any of it was actually collected.
+ */
+export async function getAdminReportsData(range: ReportRange) {
+  const supabase = await createClient();
+  const start = reportRangeStart(range);
+
+  let appQuery = supabase
+    .from("applications")
+    .select(
+      "id, application_number, status, service_id, services(name, slug), customers(full_name, email), created_at, submitted_at, completed_at, total_price_snapshot, customer_price_snapshot, answers",
+    );
+  if (start) appQuery = appQuery.gte("created_at", start);
+
+  let apptQuery = supabase.from("appointments").select("status, appointment_date");
+  if (start) apptQuery = apptQuery.gte("appointment_date", start.slice(0, 10));
+
+  const [
+    { data: applications, error: appError },
+    { data: appointments, error: apptError },
+    { count: pendingDocumentReviews },
+    { count: reuploadRequiredDocuments },
+    { data: aadhaarService },
+  ] = await Promise.all([
+    appQuery,
+    apptQuery,
+    supabase
+      .from("application_documents")
+      .select("*", { count: "exact", head: true })
+      .in("status", ["uploaded", "under_review"]),
+    supabase
+      .from("application_documents")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "reupload_required"),
+    supabase.from("services").select("id").eq("slug", "aadhaar-card-update").maybeSingle(),
+  ]);
+  if (appError) throw appError;
+  if (apptError) throw apptError;
+
+  const rows = (applications ?? []) as ReportApplicationRow[];
+
+  // Live snapshot: Aadhaar applications (any status) whose customer answered
+  // "no" to "is a mobile number already registered with your Aadhaar" --
+  // these need special handling before the visit, regardless of when the
+  // application was created.
+  let unregisteredAadhaarMobiles = 0;
+  if (aadhaarService?.id) {
+    const { count } = await supabase
+      .from("applications")
+      .select("*", { count: "exact", head: true })
+      .eq("service_id", aadhaarService.id)
+      .eq("answers->>mobile_registered", "no");
+    unregisteredAadhaarMobiles = count ?? 0;
+  }
+
+  const totalApplications = rows.length;
+  const totalValue = rows.reduce((sum, a) => sum + (a.total_price_snapshot ?? a.customer_price_snapshot ?? 0), 0);
+  const completed = rows.filter((a) => a.status === "completed");
+  const completionRate = totalApplications > 0 ? Math.round((completed.length / totalApplications) * 100) : null;
+
+  // Average completion time only over completed applications that actually
+  // have both a submitted_at and a completed_at timestamp -- never
+  // estimated or backfilled for the rest.
+  const completionDurationsDays = completed
+    .filter((a) => a.submitted_at && a.completed_at)
+    .map((a) => (new Date(a.completed_at!).getTime() - new Date(a.submitted_at!).getTime()) / 86_400_000);
+  const avgCompletionDays =
+    completionDurationsDays.length > 0
+      ? completionDurationsDays.reduce((sum, d) => sum + d, 0) / completionDurationsDays.length
+      : null;
+
+  const byService = new Map<string, { name: string; count: number }>();
+  for (const a of rows) {
+    const key = a.service_id;
+    const name = a.services?.name ?? "Unknown service";
+    const entry = byService.get(key) ?? { name, count: 0 };
+    entry.count += 1;
+    byService.set(key, entry);
+  }
+  const applicationsByService = [...byService.values()].sort((a, b) => b.count - a.count);
+
+  const byStatus = new Map<string, number>();
+  for (const a of rows) byStatus.set(a.status, (byStatus.get(a.status) ?? 0) + 1);
+
+  // Daily volume -- one bucket per calendar day across the selected range
+  // (capped so "All time" on a years-old dataset doesn't render thousands
+  // of bars; the real per-application rows are still all counted above,
+  // this only limits how many days the chart draws).
+  const dayBuckets = new Map<string, number>();
+  for (const a of rows) {
+    const day = a.created_at.slice(0, 10);
+    dayBuckets.set(day, (dayBuckets.get(day) ?? 0) + 1);
+  }
+  const sortedDays = [...dayBuckets.keys()].sort();
+  const MAX_BARS = 60;
+  const recentDays = sortedDays.slice(-MAX_BARS);
+  const dailyVolume = recentDays.map((day) => ({ day, count: dayBuckets.get(day)! }));
+
+  const appointmentsByStatus = new Map<string, number>();
+  for (const appt of appointments ?? []) {
+    appointmentsByStatus.set(appt.status, (appointmentsByStatus.get(appt.status) ?? 0) + 1);
+  }
+
+  return {
+    range,
+    totalApplications,
+    totalValue,
+    completionRate,
+    avgCompletionDays,
+    applicationsByService,
+    statusDistribution: [...byStatus.entries()].map(([status, count]) => ({ status, count })),
+    dailyVolume,
+    dailyVolumeTruncated: sortedDays.length > MAX_BARS,
+    totalAppointments: (appointments ?? []).length,
+    appointmentsByStatus: [...appointmentsByStatus.entries()].map(([status, count]) => ({ status, count })),
+    // The exact rows the metrics above were computed from -- reused as-is
+    // by the CSV export route so the download always matches what's on
+    // screen for the same range, never a second divergent query.
+    rawApplications: rows,
+    pending: {
+      documentsPendingReview: pendingDocumentReviews ?? 0,
+      actionRequiredByCustomer: reuploadRequiredDocuments ?? 0,
+      unregisteredAadhaarMobiles,
+    },
+  };
+}
+
 export type AdminAppointmentFilters = {
   date?: string;
   dateFrom?: string;

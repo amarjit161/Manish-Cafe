@@ -4,14 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 // Only routes that actually exist in the new SaaS admin today. Customers,
-// Services, Reports, Communication and Settings are deliberately left out
-// -- those routes don't exist yet, and inventing nav items for pages that
-// 404 would be worse than not listing them (see Phase 2 spec: no fake
-// functionality). Add them here the moment their route ships.
+// Services, Communication and Settings are deliberately left out -- those
+// routes don't exist yet, and inventing nav items for pages that 404 would
+// be worse than not listing them (see Phase 2 spec: no fake functionality).
+// Add them here the moment their route ships.
 export const ADMIN_SHELL_NAV = [
   { href: "/admin/dashboard", label: "Dashboard", icon: "space_dashboard" },
   { href: "/admin/dashboard/applications", label: "Applications", icon: "assignment" },
   { href: "/admin/dashboard/appointments", label: "Appointments", icon: "event" },
+  { href: "/admin/dashboard/reports", label: "Reports", icon: "bar_chart" },
 ] as const;
 
 function isActive(pathname: string, href: string) {
