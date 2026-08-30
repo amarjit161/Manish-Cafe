@@ -64,7 +64,11 @@ export function CustomerMessageThread({ applicationId, messages }: { application
                       : "border-outline-variant bg-surface-container-lowest"
                   }`}
                 >
-                  <p className="text-label-sm text-on-surface-variant flex items-center gap-1.5">
+                  <p
+                    className={`text-label-sm flex items-center gap-1.5 ${
+                      fromCustomer ? "text-on-primary-container/80" : "text-on-surface-variant"
+                    }`}
+                  >
                     {fromCustomer ? "You" : "Manish Cafe"} · {formatDate(m.created_at)}
                     {isNew(m) ? (
                       <span className="rounded-full bg-error px-1.5 py-0.5 text-[10px] font-semibold text-on-error">
@@ -72,7 +76,13 @@ export function CustomerMessageThread({ applicationId, messages }: { application
                       </span>
                     ) : null}
                   </p>
-                  <p className="text-body-md text-foreground whitespace-pre-wrap break-words">{m.message}</p>
+                  <p
+                    className={`text-body-md whitespace-pre-wrap break-words ${
+                      fromCustomer ? "text-on-primary-container" : "text-foreground"
+                    }`}
+                  >
+                    {m.message}
+                  </p>
                 </div>
               </li>
             );

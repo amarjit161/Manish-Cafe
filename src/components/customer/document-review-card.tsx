@@ -25,6 +25,29 @@ const IN_REVIEW_STATUSES = new Set(["uploaded", "under_review"]);
 const APPROVED_STATUSES = new Set(["approved", "verified"]);
 
 /**
+ * Soft pill status indicator -- icon + short text, never color alone, and
+ * always plain customer-facing language (never a raw document_status enum
+ * value). Kept local to this file rather than reusing the admin's
+ * DocumentStatusBadge, which intentionally shows the real database status --
+ * exactly what a customer shouldn't have to interpret.
+ */
+function StatusPill({ tone, icon, label }: { tone: "error" | "success" | "info"; icon: string; label: string }) {
+  const toneClasses = {
+    error: "bg-error-container text-on-error-container",
+    success: "bg-success-container text-on-success-container",
+    info: "bg-info-container text-on-info-container",
+  }[tone];
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-label-sm font-medium ${toneClasses}`}>
+      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+        {icon}
+      </span>
+      {label}
+    </span>
+  );
+}
+
+/**
  * A document's full state for the customer, in plain language only --
  * never document_status/application_status enum values. Deliberately does
  * NOT reuse the admin's DocumentStatusBadge (that shows the real database
@@ -63,16 +86,22 @@ export function DocumentReviewCard({
 
   if (!current) {
     return (
-      <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-3 space-y-1.5">
-        <p className="text-body-md font-medium text-foreground">{name}</p>
+      <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-body-md font-medium text-foreground">{name}</p>
+          <StatusPill tone="info" icon="radio_button_unchecked" label="Required" />
+        </div>
         <p className="text-label-sm text-on-surface-variant">
           {documentType.description ?? `Upload your ${name.toLowerCase()}.`}
         </p>
-        <p className="text-label-sm text-on-surface-variant">
-          {buildDocumentGuidance(documentType).slice(1).join(" · ")}
-        </p>
+
         {canUpload ? (
-          <DocumentUploadForm applicationId={applicationId} documentTypeId={documentType.id} label="Choose file" />
+          <DocumentUploadForm
+            applicationId={applicationId}
+            documentTypeId={documentType.id}
+            label="Tap to upload"
+            dropzone={{ guidance: buildDocumentGuidance(documentType).slice(1).join(" · ") }}
+          />
         ) : (
           <p className="text-label-sm text-error">Missing</p>
         )}
@@ -88,24 +117,26 @@ export function DocumentReviewCard({
         needsAction ? "border-error bg-error-container/20" : "border-outline-variant bg-surface-container-lowest"
       }`}
     >
-      <p className="text-body-md font-medium text-foreground">{name}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-body-md font-medium text-foreground">{name}</p>
+        {needsAction ? (
+          <StatusPill tone="error" icon="error" label="Action required" />
+        ) : isApproved ? (
+          <StatusPill tone="success" icon="check_circle" label="Approved" />
+        ) : isInReview ? (
+          <StatusPill tone="info" icon="hourglass_top" label="Under review" />
+        ) : null}
+      </div>
 
       <div className="flex items-center gap-3">
         <DocumentPreviewTrigger documentId={current.id} isImage={isImage} filename={current.original_filename} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-label-sm text-on-surface-variant">{current.original_filename}</p>
-          {needsAction ? (
-            <p className="text-label-sm font-semibold text-error">🔴 Action required</p>
-          ) : isApproved ? (
-            <p className="text-label-sm font-semibold text-success">✓ Approved</p>
-          ) : isInReview ? (
-            <p className="text-label-sm font-semibold text-foreground">⏳ Under review</p>
-          ) : null}
         </div>
       </div>
 
       {needsAction && reason ? (
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 rounded-lg bg-surface-container-lowest/70 p-2.5">
           <p className="text-label-sm font-medium text-on-surface-variant">Reason from Manish Cafe:</p>
           <p className="text-body-md text-foreground">&ldquo;{reason}&rdquo;</p>
         </div>

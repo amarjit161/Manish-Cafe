@@ -41,24 +41,63 @@ export default async function CustomerApplicationDetailPage({
   const { application, requiredDocs, documents, history, messages, extraCharges, appointment } = result;
 
   if (submitted === "1" && application.status !== "draft") {
+    const requiresAppointment = !!application.services?.requires_appointment;
     return (
-      <div className="space-y-4 text-center py-8">
-        <p className="text-headline-lg text-success">✓</p>
-        <h1 className="text-headline-md text-foreground">Application submitted</h1>
-        <p className="text-body-md text-on-surface-variant">Your application has been received.</p>
-        <div className="rounded-2xl bg-surface-container-low p-4 inline-block">
-          <p className="text-label-sm text-on-surface-variant">Application number</p>
-          <p className="text-headline-md text-foreground">{application.application_number}</p>
-        </div>
-        <p className="text-body-md text-on-surface-variant">
-          We&rsquo;ll review your information and update you here.
-        </p>
-        <Link
-          href={`/customer/applications/${application.id}`}
-          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary text-on-primary px-6 text-label-lg font-medium"
+      <div className="max-w-md mx-auto space-y-6 text-center py-6">
+        <span
+          className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-success-container text-success"
+          aria-hidden="true"
         >
-          View application
-        </Link>
+          <span className="material-symbols-outlined text-[40px]">check_circle</span>
+        </span>
+
+        <div className="space-y-1.5">
+          <h1 className="text-headline-md text-foreground font-bold">Application submitted successfully!</h1>
+          <p className="text-body-md text-on-surface-variant">
+            Your {application.services?.name ?? "application"} (Ref: <span className="font-semibold text-foreground">{application.application_number}</span>) has been received and is being reviewed.
+          </p>
+        </div>
+
+        <div className="text-left rounded-2xl bg-surface-container-low p-4 space-y-2">
+          <p className="text-label-lg font-semibold text-foreground">What happens next</p>
+          <ol className="space-y-1.5">
+            <li className="flex items-start gap-2 text-body-md text-foreground">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary text-label-sm font-semibold mt-0.5">
+                1
+              </span>
+              Manish Cafe will review your submitted documents.
+            </li>
+            {requiresAppointment ? (
+              <li className="flex items-start gap-2 text-body-md text-foreground">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary text-label-sm font-semibold mt-0.5">
+                  2
+                </span>
+                Book a short appointment at Manish Cafe &amp; Cyber Zone.
+              </li>
+            ) : null}
+            <li className="flex items-start gap-2 text-body-md text-foreground">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary text-label-sm font-semibold mt-0.5">
+                {requiresAppointment ? 3 : 2}
+              </span>
+              Track progress and messages here, any time.
+            </li>
+          </ol>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Link
+            href={`/customer/applications/${application.id}`}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary text-on-primary px-6 text-label-lg font-medium hover:brightness-110 transition-all"
+          >
+            View application
+          </Link>
+          <Link
+            href="/customer"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-outline-variant text-foreground px-6 text-label-lg font-medium hover:bg-surface-container-low transition-colors"
+          >
+            Return to dashboard
+          </Link>
+        </div>
       </div>
     );
   }
@@ -122,18 +161,25 @@ export default async function CustomerApplicationDetailPage({
     <div className="space-y-4">
       <BackLink href="/customer/applications" label="Back to Applications" />
 
-      <div className="rounded-2xl bg-surface-container-low p-6 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-headline-md text-foreground">{application.services?.name ?? "Application"}</h1>
+      <div className="rounded-2xl bg-surface-container-low p-5 sm:p-6 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-headline-md text-foreground truncate">{application.services?.name ?? "Application"}</h1>
+            <p className="text-label-sm text-on-surface-variant mt-0.5">
+              {application.application_number ?? "Draft — not yet submitted"}
+            </p>
+          </div>
           <ApplicationStageBadge stage={progress.stage} />
         </div>
-        <p className="text-label-sm text-on-surface-variant">
-          {application.application_number ?? "Draft — not yet submitted"}
-        </p>
         {!isDraft ? (
-          <p className="text-body-md text-on-surface-variant">Created {formatDate(application.created_at)}</p>
+          <p className="text-label-sm text-on-surface-variant">
+            {application.submitted_at ? `Submitted ${formatDate(application.submitted_at)}` : `Created ${formatDate(application.created_at)}`}
+          </p>
         ) : null}
-        <p className="text-headline-md text-foreground">₹{displayedTotal}</p>
+        <div className="flex items-baseline gap-1.5 pt-1 border-t border-outline-variant">
+          <span className="text-label-sm text-on-surface-variant">Total</span>
+          <span className="text-headline-md text-foreground font-semibold">₹{displayedTotal}</span>
+        </div>
       </div>
 
       {isDraft ? (
@@ -143,6 +189,14 @@ export default async function CustomerApplicationDetailPage({
               Choose what you need, answer a few questions, upload your documents, and submit.
             </p>
             <DeleteApplicationButton applicationId={application.id} />
+          </div>
+          <div className="rounded-xl bg-info-container/60 px-3 py-2 flex items-center gap-2">
+            <span className="material-symbols-outlined text-on-info-container text-[18px]" aria-hidden="true">
+              info
+            </span>
+            <p className="text-label-sm text-on-info-container">
+              This is a draft. Nothing is submitted until you review and confirm at the end.
+            </p>
           </div>
 
           {isAadhaarUpdate ? (
@@ -162,7 +216,7 @@ export default async function CustomerApplicationDetailPage({
           ) : null}
 
           <section id="documents-section" className="space-y-2 scroll-mt-4">
-            <h2 className="text-label-lg text-foreground">Your documents</h2>
+            <h2 className="text-label-lg font-semibold text-foreground">Your documents</h2>
             <p className="text-body-md text-on-surface-variant">Based on your answers, you need these documents.</p>
             {requiredDocRows.length === 0 ? (
               <p className="text-body-md text-on-surface-variant">No documents required for this service.</p>
@@ -188,13 +242,20 @@ export default async function CustomerApplicationDetailPage({
         </>
       ) : (
         <>
+          <ApplicationProgressView progress={progress} />
+
           <ActionRequiredBanner applicationId={application.id} progress={progress} canUpload={canUpload} />
           <NoActionRequiredBanner progress={progress} />
 
-          <ApplicationProgressView progress={progress} />
-
           <section className="space-y-2">
-            <h2 className="text-label-lg text-foreground">Your documents</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-label-lg font-semibold text-foreground">Your documents</h2>
+              {requiredDocRows.filter((r) => r.currentlyRequired).length > 0 ? (
+                <span className="text-label-sm text-on-surface-variant">
+                  {requiredDocRows.filter((r) => r.currentlyRequired).length} required
+                </span>
+              ) : null}
+            </div>
             {requiredDocRows.length === 0 ? (
               <p className="text-body-md text-on-surface-variant">No documents required for this service.</p>
             ) : (
@@ -210,8 +271,13 @@ export default async function CustomerApplicationDetailPage({
                   requiredDocNames={requiredDocRows.filter((r) => r.currentlyRequired).map((r) => r.docType?.name ?? "Document")}
                 />
               ) : (
-                <div className="rounded-2xl border border-error/40 bg-error-container/20 p-4 space-y-3">
-                  <p className="text-label-lg font-semibold text-foreground">Appointment required</p>
+                <div className="rounded-2xl border border-warning/50 bg-warning-container/20 p-4 space-y-3">
+                  <p className="flex items-center gap-1.5 text-label-lg font-semibold text-foreground">
+                    <span className="material-symbols-outlined text-on-warning-container text-[20px]" aria-hidden="true">
+                      event
+                    </span>
+                    Appointment required
+                  </p>
                   <p className="text-body-md text-on-surface-variant">
                     This service needs a short visit to Manish Cafe &amp; Cyber Zone. Choose a time that works for you.
                   </p>
@@ -227,22 +293,23 @@ export default async function CustomerApplicationDetailPage({
           ) : null}
 
           <section className="space-y-2">
-            {messages.length > 0 ? <h2 className="text-label-lg text-foreground">Messages</h2> : null}
+            {messages.length > 0 ? <h2 className="text-label-lg font-semibold text-foreground">Messages</h2> : null}
             <CustomerMessageThread applicationId={application.id} messages={messages} />
           </section>
 
           <details className="space-y-2">
-            <summary className="cursor-pointer text-label-lg text-foreground">Application history</summary>
+            <summary className="cursor-pointer text-label-lg font-semibold text-foreground">Application history</summary>
             {timeline.length === 0 ? (
-              <p className="text-body-md text-on-surface-variant">No activity yet.</p>
+              <p className="text-body-md text-on-surface-variant mt-2">No activity yet.</p>
             ) : (
               <ol className="mt-2 space-y-2">
                 {timeline.map((event, i) => (
                   <li
                     key={`${event.at}-${i}`}
-                    className="rounded-xl bg-surface-container-lowest border border-outline-variant p-3 flex items-center justify-between gap-3"
+                    className="rounded-xl bg-surface-container-lowest border border-outline-variant p-3 flex items-center gap-3"
                   >
-                    <div>
+                    <span className="h-2 w-2 rounded-full bg-primary shrink-0" aria-hidden="true" />
+                    <div className="flex-1 min-w-0">
                       <p className="text-body-md text-foreground">{event.title}</p>
                       {event.detail ? <p className="text-label-sm text-on-surface-variant">{event.detail}</p> : null}
                     </div>

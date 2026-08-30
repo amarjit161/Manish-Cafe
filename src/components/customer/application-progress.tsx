@@ -7,10 +7,37 @@ const TERMINAL_COPY: Record<NonNullable<ApplicationProgress["terminal"]>, { icon
   cancelled: { icon: "○", label: "Application cancelled" },
 };
 
-function StepMarker({ state }: { state: "done" | "current" | "upcoming" }) {
-  if (state === "done") return <span className="text-success">✓</span>;
-  if (state === "current") return <span className="text-primary">●</span>;
-  return <span className="text-on-surface-variant">○</span>;
+/**
+ * One step's marker in the vertical tracker: a filled checkmark circle once
+ * done, a solid ring for the current step, a muted outline for anything
+ * still upcoming. The connecting line segment below each marker is colored
+ * to match whether the step it leads INTO is already done, so the "done"
+ * portion of the line reads as one continuous stretch.
+ */
+function StepMarker({ state, isLast }: { state: "done" | "current" | "upcoming"; isLast: boolean }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+          state === "done"
+            ? "bg-success text-on-success"
+            : state === "current"
+              ? "bg-primary text-on-primary"
+              : "bg-surface-container-high text-on-surface-variant"
+        }`}
+        aria-hidden="true"
+      >
+        {state === "done" ? (
+          <span className="material-symbols-outlined text-[16px]">check</span>
+        ) : (
+          <span className={`h-2 w-2 rounded-full ${state === "current" ? "bg-on-primary" : "bg-on-surface-variant"}`} />
+        )}
+      </span>
+      {!isLast ? (
+        <span className={`mt-0.5 w-0.5 flex-1 min-h-6 ${state === "done" ? "bg-success" : "bg-outline-variant"}`} />
+      ) : null}
+    </div>
+  );
 }
 
 /**
@@ -18,7 +45,11 @@ function StepMarker({ state }: { state: "done" | "current" | "upcoming" }) {
  * real application/document state (getApplicationProgress), never from
  * hardcoded per-application text. The detailed timestamped timeline stays
  * available underneath as "Activity history", but a customer should never
- * have to read it just to know what to do next.
+ * have to read it just to know what to do next. Deliberately dateless per
+ * step -- getApplicationProgress()'s steps carry no timestamp of their own
+ * (that real per-event history lives in the separate Application history
+ * section below), so nothing here is invented to look more detailed than
+ * the data actually is.
  */
 export function ApplicationProgressView({ progress }: { progress: ApplicationProgress }) {
   if (progress.terminal) {
@@ -34,13 +65,18 @@ export function ApplicationProgressView({ progress }: { progress: ApplicationPro
 
   return (
     <div className="rounded-2xl bg-surface-container-low p-4 space-y-3">
-      <p className="text-label-lg text-foreground">Application progress</p>
-      <ol className="space-y-2">
-        {progress.steps.map((step) => (
-          <li key={step.label} className="flex items-center gap-2 text-body-md">
-            <StepMarker state={step.state} />
-            <span className={step.state === "upcoming" ? "text-on-surface-variant" : "text-foreground"}>
+      <p className="text-label-lg font-semibold text-foreground">Application progress</p>
+      <ol>
+        {progress.steps.map((step, i) => (
+          <li key={step.label} className="flex gap-3">
+            <StepMarker state={step.state} isLast={i === progress.steps.length - 1} />
+            <span
+              className={`text-body-md pb-6 ${
+                step.state === "upcoming" ? "text-on-surface-variant" : "text-foreground font-medium"
+              } ${step.state === "current" ? "text-primary" : ""}`}
+            >
               {step.label}
+              {step.state === "current" ? <span className="text-label-sm font-normal"> · in progress</span> : null}
             </span>
           </li>
         ))}

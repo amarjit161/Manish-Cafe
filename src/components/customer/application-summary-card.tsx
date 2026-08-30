@@ -3,11 +3,14 @@ import type { ApplicationProgress } from "@/lib/applications/progress";
 import { ApplicationStageBadge } from "@/components/customer/status-badge";
 import { formatRequestedUpdates } from "@/lib/applications/aadhaar-fields";
 import { APPOINTMENT_STATUS_CHIP, formatAppointmentDateShort, formatSlotTime, type AppointmentStatus } from "@/lib/applications/appointments";
+import { formatDate } from "@/lib/format";
 
 type Application = {
   id: string;
   application_number: string | null;
   answers: unknown;
+  created_at: string;
+  submitted_at?: string | null;
   services: { name: string | null; slug?: string | null } | null;
 };
 
@@ -56,9 +59,15 @@ export function ApplicationSummaryCard({
         <span className="text-body-lg text-foreground font-medium">{application.services?.name ?? "Service"}</span>
         <ApplicationStageBadge stage={progress.stage} />
       </div>
-      <p className="text-label-sm text-on-surface-variant">
-        {application.application_number ?? "Draft — not yet submitted"}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-label-sm text-on-surface-variant">
+          {application.application_number ?? "Draft — not yet submitted"}
+        </p>
+        <p className="text-label-sm text-on-surface-variant whitespace-nowrap">
+          {isDraft ? "Created " : "Submitted "}
+          {formatDate((isDraft ? application.created_at : application.submitted_at) ?? application.created_at)}
+        </p>
+      </div>
 
       {requestedUpdates.length > 0 ? (
         <p className="text-label-sm text-on-surface-variant truncate">{requestedUpdates.join(" · ")}</p>

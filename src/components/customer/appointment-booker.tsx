@@ -108,6 +108,8 @@ export function AppointmentBooker({
               key={day.value}
               type="button"
               onClick={() => chooseDate(day.value)}
+              aria-pressed={isSelected}
+              aria-label={`${day.weekday} ${day.label}`}
               className={`flex min-h-11 min-w-16 shrink-0 flex-col items-center justify-center rounded-xl border px-3 py-1.5 ${
                 isSelected ? "border-primary bg-primary text-on-primary" : "border-outline-variant bg-surface-container-lowest text-foreground"
               }`}
@@ -140,6 +142,8 @@ export function AppointmentBooker({
                   type="button"
                   disabled={full}
                   onClick={() => setSelectedSlotId(slot.slot_template_id)}
+                  aria-pressed={isSelected}
+                  aria-label={full ? `${formatSlotTime(slot.start_time)}, fully booked` : formatSlotTime(slot.start_time)}
                   className={`min-h-11 rounded-lg border text-label-md font-medium ${
                     full
                       ? "cursor-not-allowed border-outline-variant bg-surface-container-lowest text-on-surface-variant/50 line-through"

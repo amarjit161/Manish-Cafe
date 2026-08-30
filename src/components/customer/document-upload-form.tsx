@@ -8,18 +8,23 @@ const VARIANT_CLASSES: Record<"primary" | "secondary", string> = {
   secondary: "border border-outline-variant bg-surface-container-lowest text-primary",
 };
 
+const ACCEPT = ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png";
+
 export function DocumentUploadForm({
   applicationId,
   documentTypeId,
   label = "Choose file",
   variant = "primary",
   fullWidth = false,
+  dropzone,
 }: {
   applicationId: string;
   documentTypeId: string;
   label?: string;
   variant?: "primary" | "secondary";
   fullWidth?: boolean;
+  /** Renders the whole control as a dashed-border tap-to-upload dropzone (for the "no document uploaded yet" state) instead of a pill button. `guidance` is the small helper text shown under the label. */
+  dropzone?: { guidance?: string };
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +60,29 @@ export function DocumentUploadForm({
     });
   }
 
+  if (dropzone) {
+    return (
+      <div className="space-y-1">
+        <label className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low px-4 py-6 text-center cursor-pointer hover:border-primary/50 transition-colors">
+          <span
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-on-primary"
+            aria-hidden="true"
+          >
+            <span className="material-symbols-outlined text-[20px]">{isPending ? "hourglass_top" : "add_a_photo"}</span>
+          </span>
+          <span className="text-label-lg font-medium text-primary">{isPending ? "Uploading…" : label}</span>
+          {dropzone.guidance ? <span className="text-label-sm text-on-surface-variant">{dropzone.guidance}</span> : null}
+          <input type="file" className="hidden" accept={ACCEPT} onChange={handleChange} disabled={isPending} />
+        </label>
+        {error ? (
+          <p role="alert" className="text-label-sm text-error">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1">
       <label
@@ -63,13 +91,7 @@ export function DocumentUploadForm({
         } ${VARIANT_CLASSES[variant]} ${isPending ? "opacity-60" : "cursor-pointer"}`}
       >
         {isPending ? "Uploading…" : label}
-        <input
-          type="file"
-          className="hidden"
-          accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-          onChange={handleChange}
-          disabled={isPending}
-        />
+        <input type="file" className="hidden" accept={ACCEPT} onChange={handleChange} disabled={isPending} />
       </label>
       {error ? (
         <p role="alert" className="text-label-sm text-error">

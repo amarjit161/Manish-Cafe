@@ -28,8 +28,11 @@ export function DeleteApplicationButton({ applicationId }: { applicationId: stri
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-label-sm font-medium text-error underline-offset-2 hover:underline"
+        className="inline-flex min-h-11 items-center gap-1 -mx-2 px-2 rounded-lg text-label-sm font-medium text-error underline-offset-2 hover:underline"
       >
+        <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+          delete
+        </span>
         Delete application
       </button>
 
@@ -38,7 +41,7 @@ export function DeleteApplicationButton({ applicationId }: { applicationId: stri
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-application-title"
-          className="fixed inset-0 z-60 flex items-end justify-center bg-black/40 p-0 pb-20 sm:items-center sm:p-4 sm:pb-4"
+          className="fixed inset-0 z-60 flex items-end justify-center bg-on-surface/40 p-0 pb-20 sm:items-center sm:p-4 sm:pb-4"
         >
           <div className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl bg-surface-container-lowest p-5 space-y-3">
             <p id="delete-application-title" className="text-body-lg font-semibold text-foreground">
