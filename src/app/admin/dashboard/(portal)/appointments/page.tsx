@@ -253,6 +253,7 @@ export default async function AdminAppointmentsPage({
                       </td>
                       <td className="px-4 py-3">
                         <AppointmentStatusActions appointmentId={a.id} status={a.status} />
+                        {a.status !== "booked" ? <span className="text-label-sm text-on-surface-variant">—</span> : null}
                       </td>
                     </tr>
                   ))}
