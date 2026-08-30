@@ -1,34 +1,18 @@
-"use client";
+import { CustomerNavLinks } from "@/components/customer/customer-nav-links";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-
-const CUSTOMER_NAV = [
-  { href: "/customer", label: "Home", icon: "home" },
-  { href: "/customer/services", label: "Services", icon: "storefront" },
-  { href: "/customer/applications", label: "Applications", icon: "assignment" },
-] as const;
-
+/**
+ * Mobile-only (the desktop equivalent is CustomerHeader's nav) -- never
+ * rendered alongside it at the same breakpoint. `pb-[env(safe-area-inset-bottom)]`
+ * keeps it clear of the home-indicator area on notched phones without
+ * eating into the icons/labels themselves.
+ */
 export function CustomerBottomNav() {
-  const pathname = usePathname();
-
   return (
-    <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-2 bg-primary border-t border-white/10 shadow-lg">
-      {CUSTOMER_NAV.map((link) => {
-        const active = link.href === "/customer" ? pathname === link.href : pathname.startsWith(link.href);
-        return (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={`flex flex-col items-center justify-center px-3 py-1 rounded-xl transition-colors ${
-              active ? "bg-white/15 text-on-primary" : "text-on-primary/60"
-            }`}
-          >
-            <span className="material-symbols-outlined text-[22px]">{link.icon}</span>
-            <span className="text-[10px] font-medium">{link.label}</span>
-          </Link>
-        );
-      })}
+    <nav
+      aria-label="Primary"
+      className="md:hidden fixed bottom-0 left-0 w-full z-50 flex items-stretch bg-surface-container-lowest border-t border-outline-variant shadow-[0_-2px_10px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]"
+    >
+      <CustomerNavLinks variant="mobile" />
     </nav>
   );
 }

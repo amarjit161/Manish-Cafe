@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getService } from "@/lib/customer/queries";
 import { ApplyButton } from "@/components/customer/apply-button";
 import { AADHAAR_UPDATE_FIELDS } from "@/lib/applications/aadhaar-fields";
+import { BackLink } from "@/components/layout/back-link";
 
 /**
  * Overview only -- no interactive document checklist here. What's
@@ -26,6 +27,8 @@ export default async function CustomerServiceDetailPage({
 
   return (
     <div className="space-y-4">
+      <BackLink href="/customer/services" label="Back to Services" />
+
       <div className="rounded-2xl bg-surface-container-low p-6 space-y-2">
         <h1 className="text-headline-md text-foreground">{service.name}</h1>
         {service.description ? (

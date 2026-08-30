@@ -18,7 +18,7 @@ export default async function CustomerServicesPage() {
           {services.map((service) => (
             <li
               key={service.id}
-              className="rounded-xl bg-surface-container-lowest border border-outline-variant p-4 space-y-3"
+              className="rounded-xl bg-surface-container-lowest border border-outline-variant p-4 space-y-3 transition-colors hover:border-primary/40"
             >
               <div>
                 <p className="text-body-lg text-foreground font-semibold">{service.name}</p>
@@ -30,7 +30,7 @@ export default async function CustomerServicesPage() {
                 <span className="text-headline-md text-foreground font-semibold">₹{service.customer_price}</span>
                 <Link
                   href={`/customer/services/${service.id}`}
-                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary text-on-primary px-5 text-label-lg font-medium"
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary text-on-primary px-5 text-label-lg font-medium hover:brightness-110 active:scale-[0.98] transition-all"
                 >
                   Apply
                 </Link>

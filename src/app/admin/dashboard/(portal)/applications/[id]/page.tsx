@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getApplicationDetailForAdmin } from "@/lib/admin/queries";
+import { BackLink } from "@/components/layout/back-link";
 import { ApplicationStageBadge } from "@/components/customer/status-badge";
 import { AdminDocumentCard, DocumentHistoryRow } from "@/components/admin-dashboard/document-card";
 import { AdminMessageThread } from "@/components/admin-dashboard/message-thread";
@@ -47,9 +47,7 @@ export default async function AdminApplicationDetailPage({
 
   return (
     <div className="space-y-4">
-      <Link href="/admin/dashboard/applications" className="text-label-sm text-primary underline">
-        ← Back to Applications
-      </Link>
+      <BackLink href="/admin/dashboard/applications" label="Back to Applications" />
 
       <div className="rounded-2xl bg-surface-container-low p-6 space-y-2">
         <div className="flex items-center justify-between gap-2">

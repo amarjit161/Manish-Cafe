@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getApplicationDetail, getMyCustomer } from "@/lib/customer/queries";
 import { ApplicationStageBadge } from "@/components/customer/status-badge";
+import { BackLink } from "@/components/layout/back-link";
 import { DocumentReviewCard } from "@/components/customer/document-review-card";
 import { AadhaarUpdateFieldsForm } from "@/components/customer/aadhaar-update-fields-form";
 import { DeleteApplicationButton } from "@/components/customer/delete-application-button";
@@ -119,6 +120,8 @@ export default async function CustomerApplicationDetailPage({
 
   return (
     <div className="space-y-4">
+      <BackLink href="/customer/applications" label="Back to Applications" />
+
       <div className="rounded-2xl bg-surface-container-low p-6 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-headline-md text-foreground">{application.services?.name ?? "Application"}</h1>
