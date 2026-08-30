@@ -21,7 +21,7 @@ export function CustomerHeader({
 
   return (
     <header className="sticky top-0 z-40 bg-surface-container-lowest border-b border-outline-variant">
-      <div className="max-w-4xl mx-auto px-4 md:px-6 h-14 md:h-16 flex items-center justify-between gap-4">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 h-14 md:h-16 flex items-center justify-between gap-2 lg:gap-4">
         <Link href="/customer" className="flex items-center gap-2 font-bold text-primary min-w-0 shrink-0">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-on-primary">
             <span className="material-symbols-outlined text-[20px]" aria-hidden="true">

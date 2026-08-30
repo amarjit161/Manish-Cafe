@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMyCustomer, getAppointmentAvailability } from "@/lib/customer/queries";
+import { getCurrentUserProfile } from "@/lib/auth/session";
 import { isDocumentRequired } from "@/lib/applications/requirements";
 import { deriveAnswerFlags, type MobileRegisteredAnswer } from "@/lib/applications/aadhaar-fields";
 import { deleteFromR2Worker } from "@/lib/documents/r2-worker";
@@ -363,4 +364,64 @@ export async function cancelAppointment(appointmentId: string, applicationId: st
   revalidatePath(`/customer/applications/${applicationId}`);
   revalidatePath("/customer");
   return { success: true };
+}
+
+/**
+ * Updates the caller's own name/phone/address/date of birth -- on both
+ * `customers` (the business-domain record) and `profiles` (the
+ * auth-role record), which keep independent copies of full_name/phone.
+ * Neither table's UPDATE policy needs anything special from this action:
+ * customers_update and profiles_update already allow
+ * profile_id/id = auth.uid() respectively, so an unauthenticated caller
+ * or a mismatched id is rejected by RLS regardless of what's sent here.
+ * Email is intentionally never touched here -- it's also the Supabase
+ * Auth login identifier, and changing it for real requires
+ * auth.updateUser({ email }) plus a confirmation-link round trip, which
+ * is out of scope for this simple profile-details form. The Account/Edit
+ * Profile UI renders email read-only accordingly.
+ */
+export async function updateMyProfile(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const profile = await getCurrentUserProfile();
+  if (!profile) {
+    return { error: "You need to be signed in to update your profile." };
+  }
+
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+  const address = String(formData.get("address") ?? "").trim();
+  const dateOfBirth = String(formData.get("dateOfBirth") ?? "").trim();
+
+  if (!fullName) {
+    return { error: "Full name is required." };
+  }
+  if (fullName.length > 200) {
+    return { error: "Full name is too long." };
+  }
+
+  const supabase = await createClient();
+
+  const [{ error: profileError }, { error: customerError }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .update({ full_name: fullName, phone: phone || null })
+      .eq("id", profile.id),
+    supabase
+      .from("customers")
+      .update({
+        full_name: fullName,
+        phone: phone || null,
+        address: address || null,
+        date_of_birth: dateOfBirth || null,
+      })
+      .eq("profile_id", profile.id),
+  ]);
+
+  if (profileError || customerError) {
+    return { error: "We couldn't save your changes. Please try again." };
+  }
+
+  revalidatePath("/customer/account");
+  revalidatePath("/customer/settings");
+  revalidatePath("/customer");
+  return undefined;
 }

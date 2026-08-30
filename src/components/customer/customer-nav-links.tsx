@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Only routes that actually exist -- Support and Account are intentionally
-// left out here (no such routes yet). Shared by the desktop header and the
-// mobile bottom nav so the two surfaces can never drift out of sync.
+// Only routes that actually exist -- Support is intentionally left out
+// here (no such route yet). Shared by the desktop header and the mobile
+// bottom nav so the two surfaces can never drift out of sync.
 export const CUSTOMER_NAV = [
   { href: "/customer", label: "Home", icon: "home" },
   { href: "/customer/services", label: "Services", icon: "storefront" },
   { href: "/customer/applications", label: "Applications", icon: "assignment" },
+  { href: "/customer/account", label: "Account", icon: "person" },
 ] as const;
 
 function isActive(pathname: string, href: string) {
@@ -57,7 +58,7 @@ export function CustomerNavLinks({ variant }: { variant: "desktop" | "mobile" })
             key={link.href}
             href={link.href}
             aria-current={active ? "page" : undefined}
-            className={`rounded-lg px-4 py-2 text-label-lg font-medium transition-colors ${
+            className={`rounded-lg px-2.5 lg:px-4 py-2 text-label-lg font-medium whitespace-nowrap transition-colors ${
               active
                 ? "bg-primary-container/15 text-primary"
                 : "text-on-surface-variant hover:bg-surface-container-low hover:text-foreground"

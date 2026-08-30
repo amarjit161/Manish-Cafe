@@ -1,12 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-/**
- * Deliberately just an identity readout + logout -- there is no
- * account/settings route yet (that's a future phase per the SaaS shell
- * spec), so this never links anywhere that doesn't exist.
- */
 export function AccountMenu({
   name,
   email,
@@ -57,12 +53,37 @@ export function AccountMenu({
             <p className="text-body-md text-foreground font-medium truncate">{name ?? "Your account"}</p>
             {email ? <p className="text-label-sm text-on-surface-variant truncate">{email}</p> : null}
           </div>
+          <Link
+            href="/customer/account"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-body-md text-foreground hover:bg-surface-container-low"
+          >
+            <span className="material-symbols-outlined text-[18px] text-on-surface-variant" aria-hidden="true">
+              person
+            </span>
+            Account
+          </Link>
+          <Link
+            href="/customer/settings"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-body-md text-foreground hover:bg-surface-container-low"
+          >
+            <span className="material-symbols-outlined text-[18px] text-on-surface-variant" aria-hidden="true">
+              settings
+            </span>
+            Settings
+          </Link>
           <button
             type="button"
             role="menuitem"
             onClick={onSignOut}
-            className="w-full text-left rounded-lg px-3 py-2 text-body-md text-error hover:bg-error-container/30"
+            className="w-full flex items-center gap-2 text-left rounded-lg px-3 py-2 text-body-md text-error hover:bg-error-container/30"
           >
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+              logout
+            </span>
             Log out
           </button>
         </div>
