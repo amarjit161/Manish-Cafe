@@ -17,6 +17,27 @@ import type { Database } from "@/lib/supabase/database.types";
 // never silently drift apart into two different definitions.
 export const AWAITING_ADMIN_REVIEW = new Set(["uploaded", "under_review"]);
 
+/**
+ * Picks the one appointment to show for an application that embeds
+ * `appointments(...)` as a to-many relation: prefer the still-booked row,
+ * otherwise the most recent one (cancelled/completed) so a genuinely past
+ * appointment isn't silently hidden. Shared by the register list and the
+ * detail page so they can never pick differently for the same
+ * application. Supabase's generated embed type is "single row | never[]"
+ * rather than a plain array, so this normalizes that first regardless of
+ * which shape actually comes back.
+ */
+function pickCurrentAppointment<T extends { status: string; appointment_date: string }>(
+  raw: T | T[] | null | undefined,
+): T | null {
+  const appointments = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return (
+    appointments.find((a) => a.status === "booked") ??
+    [...appointments].sort((a, b) => b.appointment_date.localeCompare(a.appointment_date))[0] ??
+    null
+  );
+}
+
 export async function getAdminDashboardStats() {
   const supabase = await createClient();
 
@@ -129,19 +150,7 @@ export async function getAllApplicationsForAdmin(filters: AdminApplicationFilter
     const documents = application.application_documents ?? [];
     const approvedCount = documents.filter((d) => d.status === "approved" || d.status === "verified").length;
 
-    // Prefer the still-booked appointment if one exists; otherwise fall
-    // back to the most recent row (cancelled/completed) so a genuinely
-    // past appointment isn't silently hidden. Real data currently never
-    // has more than one row per application, so this is a safety net,
-    // not the common case. Supabase's generated type for this embed is
-    // "single row | never[]" rather than a plain array, so normalize
-    // first regardless of which shape actually comes back.
-    const rawAppointments = application.appointments;
-    const appointments = Array.isArray(rawAppointments) ? rawAppointments : rawAppointments ? [rawAppointments] : [];
-    const currentAppointment =
-      appointments.find((a) => a.status === "booked") ??
-      [...appointments].sort((a, b) => b.appointment_date.localeCompare(a.appointment_date))[0] ??
-      null;
+    const currentAppointment = pickCurrentAppointment(application.appointments);
 
     return {
       ...application,
@@ -171,36 +180,49 @@ export async function getApplicationDetailForAdmin(applicationId: string) {
   if (error) throw error;
   if (!application) return null;
 
-  const [{ data: documents }, { data: history }, { data: messages }, { data: internalNotes }, { data: requiredDocs }] =
-    await Promise.all([
-      supabase
-        .from("application_documents")
-        .select("*, document_types(name, code)")
-        .eq("application_id", applicationId)
-        .order("uploaded_at", { ascending: false }),
-      supabase
-        .from("application_status_history")
-        .select("*")
-        .eq("application_id", applicationId)
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("application_messages")
-        .select("*, profiles(full_name, role)")
-        .eq("application_id", applicationId)
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("application_internal_notes")
-        .select("*, profiles(full_name)")
-        .eq("application_id", applicationId)
-        .order("created_at", { ascending: true }),
-      // Needed so the admin page can compute the exact same canonical
-      // getApplicationProgress() the customer page uses -- one status
-      // calculation reused everywhere, not a second one invented here.
-      supabase
-        .from("service_document_types")
-        .select("is_mandatory, condition_key, document_type_id, document_types(name)")
-        .eq("service_id", application.service_id),
-    ]);
+  const [
+    { data: documents },
+    { data: history },
+    { data: messages },
+    { data: internalNotes },
+    { data: requiredDocs },
+    { data: appointments },
+  ] = await Promise.all([
+    supabase
+      .from("application_documents")
+      .select("*, document_types(name, code)")
+      .eq("application_id", applicationId)
+      .order("uploaded_at", { ascending: false }),
+    supabase
+      .from("application_status_history")
+      .select("*")
+      .eq("application_id", applicationId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("application_messages")
+      .select("*, profiles(full_name, role)")
+      .eq("application_id", applicationId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("application_internal_notes")
+      .select("*, profiles(full_name)")
+      .eq("application_id", applicationId)
+      .order("created_at", { ascending: true }),
+    // Needed so the admin page can compute the exact same canonical
+    // getApplicationProgress() the customer page uses -- one status
+    // calculation reused everywhere, not a second one invented here.
+    supabase
+      .from("service_document_types")
+      .select("is_mandatory, condition_key, document_type_id, document_types(name)")
+      .eq("service_id", application.service_id),
+    // Same table/RLS getAdminAppointments already reads, just scoped to
+    // this one application and with the columns the detail page's
+    // appointment card actually shows (contact numbers, admin notes).
+    supabase
+      .from("appointments")
+      .select("*, appointment_slot_templates(start_time, end_time)")
+      .eq("application_id", applicationId),
+  ]);
 
   return {
     application,
@@ -209,6 +231,7 @@ export async function getApplicationDetailForAdmin(applicationId: string) {
     messages: messages ?? [],
     internalNotes: internalNotes ?? [],
     requiredDocs: requiredDocs ?? [],
+    appointment: pickCurrentAppointment(appointments ?? []),
   };
 }
 
