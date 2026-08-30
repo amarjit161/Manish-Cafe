@@ -1,16 +1,15 @@
 import Link from "next/link";
 import { getCurrentUserProfile } from "@/lib/auth/session";
-import { getAdminDashboardStats, getAllApplicationsForAdmin, getAdminAppointments } from "@/lib/admin/queries";
+import {
+  getAdminDashboardStats,
+  getAllApplicationsForAdmin,
+  getAdminAppointments,
+  AWAITING_ADMIN_REVIEW,
+} from "@/lib/admin/queries";
 import { StatCard } from "@/components/customer/stat-card";
 import { StatusBadge } from "@/components/customer/status-badge";
 import { EmptyState } from "@/components/customer/empty-state";
 import { todayDateString, formatSlotTime } from "@/lib/applications/appointments";
-
-// Documents in either of these states are sitting in the admin's queue,
-// waiting on a human decision -- this is the one place "needs admin
-// attention" is defined, reused for both the KPI card and the list below
-// it so they can never silently drift apart.
-const AWAITING_ADMIN_REVIEW = new Set(["uploaded", "under_review"]);
 
 export default async function AdminSaasDashboardPage() {
   const today = todayDateString();

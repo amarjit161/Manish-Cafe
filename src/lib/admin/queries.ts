@@ -10,6 +10,13 @@ import type { Database } from "@/lib/supabase/database.types";
  * sees every row; nothing here bypasses or duplicates that authorization.
  */
 
+// Documents in either of these states are sitting in the admin's queue,
+// waiting on a human decision. This is the one place "needs admin
+// attention" is defined -- the dashboard's KPI/list and the applications
+// register's "Needs attention" indicator both import this so they can
+// never silently drift apart into two different definitions.
+export const AWAITING_ADMIN_REVIEW = new Set(["uploaded", "under_review"]);
+
 export async function getAdminDashboardStats() {
   const supabase = await createClient();
 
@@ -83,7 +90,13 @@ export async function getAllApplicationsForAdmin(filters: AdminApplicationFilter
   let query = supabase
     .from("applications")
     .select(
-      "id, application_number, status, customer_price_snapshot, created_at, updated_at, customers(full_name, email, phone), services(id, name), application_documents(status)",
+      // appointments is embedded as-is (same relation/RLS already used by
+      // getAdminAppointments, just read from the applications side) --
+      // this is a presentation addition, not a new query path. An
+      // application can theoretically accumulate more than one row here
+      // over its lifetime (rescheduled/cancelled-and-rebooked), so this
+      // stays an array; callers pick the one they care about.
+      "id, application_number, status, customer_price_snapshot, created_at, updated_at, submitted_at, customers(full_name, email, phone), services(id, name), application_documents(status), appointments(appointment_date, status, appointment_slot_templates(start_time))",
     )
     .order("created_at", { ascending: false });
 
@@ -115,9 +128,25 @@ export async function getAllApplicationsForAdmin(filters: AdminApplicationFilter
   return rows.map((application) => {
     const documents = application.application_documents ?? [];
     const approvedCount = documents.filter((d) => d.status === "approved" || d.status === "verified").length;
+
+    // Prefer the still-booked appointment if one exists; otherwise fall
+    // back to the most recent row (cancelled/completed) so a genuinely
+    // past appointment isn't silently hidden. Real data currently never
+    // has more than one row per application, so this is a safety net,
+    // not the common case. Supabase's generated type for this embed is
+    // "single row | never[]" rather than a plain array, so normalize
+    // first regardless of which shape actually comes back.
+    const rawAppointments = application.appointments;
+    const appointments = Array.isArray(rawAppointments) ? rawAppointments : rawAppointments ? [rawAppointments] : [];
+    const currentAppointment =
+      appointments.find((a) => a.status === "booked") ??
+      [...appointments].sort((a, b) => b.appointment_date.localeCompare(a.appointment_date))[0] ??
+      null;
+
     return {
       ...application,
       documentCounts: { approved: approvedCount, total: documents.length },
+      currentAppointment,
     };
   });
 }
