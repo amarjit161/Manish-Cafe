@@ -1,43 +1,24 @@
-import Link from "next/link";
 import { getActiveServices } from "@/lib/customer/queries";
 import { EmptyState } from "@/components/customer/empty-state";
+import { ServiceQuickCard } from "@/components/customer/service-quick-card";
 
 export default async function CustomerServicesPage() {
   const services = await getActiveServices();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-headline-md text-foreground">Services</h1>
+        <h1 className="text-headline-md md:text-headline-lg text-foreground font-bold">Services</h1>
         <p className="text-body-md text-on-surface-variant mt-1">Choose a service to get started.</p>
       </div>
       {services.length === 0 ? (
         <EmptyState message="No services are available right now. Please check back later." />
       ) : (
-        <ul className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {services.map((service) => (
-            <li
-              key={service.id}
-              className="rounded-xl bg-surface-container-lowest border border-outline-variant p-4 space-y-3 transition-colors hover:border-primary/40"
-            >
-              <div>
-                <p className="text-body-lg text-foreground font-semibold">{service.name}</p>
-                {service.description ? (
-                  <p className="text-body-md text-on-surface-variant mt-0.5">{service.description}</p>
-                ) : null}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-headline-md text-foreground font-semibold">₹{service.customer_price}</span>
-                <Link
-                  href={`/customer/services/${service.id}`}
-                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary text-on-primary px-5 text-label-lg font-medium hover:brightness-110 active:scale-[0.98] transition-all"
-                >
-                  Apply
-                </Link>
-              </div>
-            </li>
+            <ServiceQuickCard key={service.id} service={service} variant="full" />
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );
